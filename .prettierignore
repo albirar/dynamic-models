@@ -1,0 +1,54 @@
+# Build outputs
+target/
+build/
+out/
+bin/
+
+# Gradle
+.gradle/
+
+# Maven wrapper
+.mvn/wrapper/maven-wrapper.jar
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+*.prefs
+
+# Dependencies
+node_modules/
+
+# Generated sources
+**/generated-sources/
+**/generated-test-sources/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git internals
+.git/
+
+# Binaries / assets not to format
+*.jar
+*.class
+*.war
+*.zip
+*.tar
+*.gz
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.pdf
+*.woff
+*.woff2

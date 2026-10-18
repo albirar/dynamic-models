@@ -38,6 +38,8 @@ public class FilterInterceptor implements HandlerInterceptor {
                                (handlerMethod.getBeanType() != null && 
                                 handlerMethod.getBeanType().getAnnotation(EnableModelFiltering.class) != null);
 
+        LOGGER.debug("Has annotation: {}", hasAnnotation);
+        
         if (!hasAnnotation) {
             FilterContext.clear();
             LOGGER.debug("Sortida sense filtratge perquè no és hi ha anotació");

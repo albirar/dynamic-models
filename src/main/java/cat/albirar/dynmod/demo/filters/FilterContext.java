@@ -1,6 +1,7 @@
 package cat.albirar.dynmod.demo.filters;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
 import cat.albirar.dynmod.demo.models.filters.FiltersModel;
@@ -11,7 +12,7 @@ import cat.albirar.dynmod.demo.models.filters.FiltersModel;
 public class FilterContext {
     private static final ThreadLocal<Set<FiltersModel>> currentFilters = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> isFilteringEnabled = ThreadLocal.withInitial(() -> false);
-    private static final ThreadLocal<Boolean> isSerializing = ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<Set<Class<?>>> serializingClasses = ThreadLocal.withInitial(HashSet::new);
 
     public static void setFilters(Set<FiltersModel> filters) {
         currentFilters.set(filters);
@@ -29,17 +30,21 @@ public class FilterContext {
         return isFilteringEnabled.get();
     }
 
-    public static void setSerializing(boolean serializing) {
-        isSerializing.set(serializing);
+    public static void addSerializingClass(Class<?> clazz) {
+        serializingClasses.get().add(clazz);
     }
 
-    public static boolean isSerializing() {
-        return isSerializing.get();
+    public static void removeSerializingClass(Class<?> clazz) {
+        serializingClasses.get().remove(clazz);
+    }
+
+    public static boolean isSerializing(Class<?> clazz) {
+        return serializingClasses.get().contains(clazz);
     }
 
     public static void clear() {
         currentFilters.remove();
         isFilteringEnabled.remove();
-        isSerializing.remove();
+        serializingClasses.remove();
     }
 }

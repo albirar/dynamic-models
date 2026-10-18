@@ -3,18 +3,20 @@ package cat.albirar.dynmod.demo.config;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import java.util.List;
 
 import cat.albirar.dynmod.demo.filters.FilterInterceptor;
-import cat.albirar.dynmod.demo.filters.FilteredViewSerializer;
-import cat.albirar.dynmod.demo.models.BrandBean;
-import cat.albirar.dynmod.demo.models.MarketDataBean;
-import cat.albirar.dynmod.demo.models.VehicleModelBean;
-import cat.albirar.dynmod.demo.models.VehiclePartBean;
+import cat.albirar.dynmod.demo.filters.FilteredViewPropertyFilter;
 
 /**
  * Configuration for model filtering feature.
@@ -23,25 +25,9 @@ import cat.albirar.dynmod.demo.models.VehiclePartBean;
 @Configuration
 @ConditionalOnProperty(
     name = "spring.application.models.filtered",
-    havingValue = "true",
-    matchIfMissing = false
+    havingValue = "true"
 )
 public class FilterConfiguration {
-
-    @Bean
-    public Jackson2ObjectMapperBuilder jacksonBuilder() {
-        SimpleModule module = new SimpleModule();
-        FilteredViewSerializer serializer = new FilteredViewSerializer();
-        
-        // Register the serializer only for the model classes that we need to filter
-        module.addSerializer(VehicleModelBean.class, serializer);
-        module.addSerializer(BrandBean.class, serializer);
-        module.addSerializer(MarketDataBean.class, serializer);
-        module.addSerializer(VehiclePartBean.class, serializer);
-        
-        return new Jackson2ObjectMapperBuilder()
-            .modules(module);
-    }
 
     @Bean
     public FilterInterceptor filterInterceptor() {
@@ -49,12 +35,37 @@ public class FilterConfiguration {
     }
 
     @Bean
-    public WebMvcConfigurer webMvcConfigurer(FilterInterceptor filterInterceptor) {
+    public WebMvcConfigurer webMvcConfigurer(FilterInterceptor filterInterceptor, ObjectMapper objectMapper) {
         return new WebMvcConfigurer() {
             @Override
             public void addInterceptors(InterceptorRegistry registry) {
                 registry.addInterceptor(filterInterceptor);
             }
+            
+            @Override
+            public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+                converters.add(0, new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(objectMapper));
+            }
         };
+    }
+    
+    @Bean
+    public com.fasterxml.jackson.databind.ser.FilterProvider filterProvider() {
+        FilteredViewPropertyFilter filter = new FilteredViewPropertyFilter();
+        return new com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider()
+            .addFilter("vehicleModelFilter", filter)
+            .addFilter("brandFilter", filter)
+            .addFilter("marketDataFilter", filter)
+            .addFilter("vehiclePartFilter", filter);
+    }
+    
+    @Bean
+    @Primary
+    public ObjectMapper objectMapper(com.fasterxml.jackson.databind.ser.FilterProvider filterProvider) {
+        ObjectMapper objectMapper = Jackson2ObjectMapperBuilder.json()
+            .modules(new Jdk8Module(), new JavaTimeModule())
+            .build();
+        objectMapper.setFilterProvider(filterProvider);
+        return objectMapper;
     }
 }

@@ -1,12 +1,9 @@
 package cat.albirar.dynmod.demo.config;
 
-import java.util.List;
-
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -35,17 +32,11 @@ public class FilterConfiguration {
     }
 
     @Bean
-    public WebMvcConfigurer webMvcConfigurer(FilterInterceptor filterInterceptor, ObjectMapper objectMapper) {
+    public WebMvcConfigurer webMvcConfigurer(FilterInterceptor filterInterceptor) {
         return new WebMvcConfigurer() {
             @Override
             public void addInterceptors(InterceptorRegistry registry) {
                 registry.addInterceptor(filterInterceptor);
-            }
-            
-            @Override
-            public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-                // Add our custom converter with the filtered ObjectMapper at the beginning
-                converters.add(0, new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(objectMapper));
             }
         };
     }
@@ -65,6 +56,7 @@ public class FilterConfiguration {
     public ObjectMapper objectMapper(com.fasterxml.jackson.databind.ser.FilterProvider filterProvider) {
         ObjectMapper objectMapper = Jackson2ObjectMapperBuilder.json()
             .modules(new Jdk8Module(), new JavaTimeModule())
+            .simpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX")
             .build();
         objectMapper.setFilterProvider(filterProvider);
         return objectMapper;

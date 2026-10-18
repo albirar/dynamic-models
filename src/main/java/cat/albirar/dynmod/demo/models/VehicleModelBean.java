@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonFilter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -16,7 +17,6 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(value = Include.NON_ABSENT)
-@JsonFilter("vehicleModelFilter")
 public class VehicleModelBean {
     @FilteredView(filters = {FiltersModel.Brand})
     private BrandBean brand;
@@ -43,10 +43,12 @@ public class VehicleModelBean {
     /**
      * Commercialization date.
      */
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSX", timezone = "UTC")
     private Optional<Instant> commercialization;
     /**
      * Retirement date.
      */
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSX", timezone = "UTC")
     private Optional<Instant> retirement;
     @FilteredView(filters = {FiltersModel.Market})
     private Map<String, MarketDataBean> marketData;

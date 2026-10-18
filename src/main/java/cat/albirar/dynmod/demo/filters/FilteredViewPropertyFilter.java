@@ -1,7 +1,6 @@
 package cat.albirar.dynmod.demo.filters;
 
 import java.util.Arrays;
-import java.util.Set;
 
 import com.fasterxml.jackson.databind.ser.BeanPropertyWriter;
 import com.fasterxml.jackson.databind.ser.PropertyWriter;

@@ -1,5 +1,7 @@
 package cat.albirar.dynmod.demo.config;
 
+import java.util.List;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,8 +14,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-
-import java.util.List;
 
 import cat.albirar.dynmod.demo.filters.FilterInterceptor;
 import cat.albirar.dynmod.demo.filters.FilteredViewPropertyFilter;
@@ -44,6 +44,7 @@ public class FilterConfiguration {
             
             @Override
             public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+                // Add our custom converter with the filtered ObjectMapper at the beginning
                 converters.add(0, new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(objectMapper));
             }
         };

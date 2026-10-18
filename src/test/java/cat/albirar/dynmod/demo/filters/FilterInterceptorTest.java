@@ -2,7 +2,7 @@ package cat.albirar.dynmod.demo.filters;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -15,9 +15,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.method.HandlerMethod;
 
+import cat.albirar.dynmod.demo.models.filters.FiltersModel;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import cat.albirar.dynmod.demo.models.filters.FiltersModel;
 
 /**
  * Unit tests for FilterInterceptor.
@@ -126,21 +126,16 @@ class FilterInterceptorTest {
     }
 
     @Test
-    void testInvalidFilterCode_IgnoredWithWarning() throws Exception {
+    void testInvalidFilterCode_ThrowsException() throws Exception {
         // Given: Handler with @EnableModelFiltering and invalid filter code
         HandlerMethod handlerMethod = createHandlerMethodWithAnnotation();
         when(request.getParameter("m")).thenReturn("B,INVALID,E");
 
         // When: Interceptor processes the request
-        boolean result = interceptor.preHandle(request, response, handlerMethod);
-
-        // Then: Only valid filters should be applied, invalid ones are ignored
-        assertTrue(result);
-        assertTrue(FilterContext.isFilteringEnabled());
-        Set<FiltersModel> filters = FilterContext.getFilters();
-        assertEquals(2, filters.size());
-        assertTrue(filters.contains(FiltersModel.Brand));
-        assertTrue(filters.contains(FiltersModel.Economic));
+        // Then: Should throw ModelFilteringException
+        assertThrows(ModelFilteringException.class, () -> {
+            interceptor.preHandle(request, response, handlerMethod);
+        });
     }
 
     @Test

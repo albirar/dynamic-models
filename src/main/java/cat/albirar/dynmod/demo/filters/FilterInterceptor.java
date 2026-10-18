@@ -1,19 +1,15 @@
 package cat.albirar.dynmod.demo.filters;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import cat.albirar.dynmod.demo.models.filters.FiltersModel;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import cat.albirar.dynmod.demo.models.filters.FiltersModel;
 
 /**
  * Interceptor to read the filter parameter or header and enable filtering for endpoints
@@ -54,6 +50,7 @@ public class FilterInterceptor implements HandlerInterceptor {
         LOGGER.debug("Filtratge: param: {}; header: {}, filterValue: {}", filterParam, filterHeader, filterValue);
         if (filterValue != null && !filterValue.isEmpty()) {
             Set<FiltersModel> filters = new HashSet<>();
+            StringBuilder invalidCodes = new StringBuilder();
             for (String code : filterValue.split(",")) {
                 code = code.trim();
                 if (!code.isEmpty()) {
@@ -61,10 +58,19 @@ public class FilterInterceptor implements HandlerInterceptor {
                         FiltersModel filter = FiltersModel.fromCode(code);
                         filters.add(filter);
                     } catch (IllegalArgumentException e) {
-                        LOGGER.warn("Invalid filter code '{}' in parameter or header. Ignoring.", code);
+                        if (invalidCodes.length() > 0) {
+                            invalidCodes.append(", ");
+                        }
+                        invalidCodes.append("'").append(code).append("'");
                     }
                 }
             }
+            
+            // If there are invalid codes, throw exception
+            if (invalidCodes.length() > 0) {
+                throw new ModelFilteringException("Invalid filter code(s): " + invalidCodes.toString());
+            }
+            
             FilterContext.setFilters(filters);
             FilterContext.setFilteringEnabled(true);
             LOGGER.debug("El filtre s'ha activat amb {}", filters);

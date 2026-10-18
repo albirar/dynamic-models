@@ -7,6 +7,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
+import cat.albirar.dynmod.demo.models.filters.FilteredView;
+import cat.albirar.dynmod.demo.models.filters.FiltersModel;
 import lombok.Data;
 
 /**
@@ -21,8 +23,12 @@ public class MarketDataBean {
     private Instant startCommercializing;
     private Instant endCommercializing;
     private String commercialName;
+    @FilteredView(filters = {FiltersModel.Economic})
     private Currency currency;
+    @FilteredView(filters = {FiltersModel.Economic})
     private float localMarketPrice;
+    @FilteredView(filters = {FiltersModel.Economic})
     private float marketPrice;
+    @FilteredView(filters = {FiltersModel.Economic})
     private float margin;
 }

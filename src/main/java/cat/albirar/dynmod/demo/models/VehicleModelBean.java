@@ -8,12 +8,15 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
+import cat.albirar.dynmod.demo.models.filters.FilteredView;
+import cat.albirar.dynmod.demo.models.filters.FiltersModel;
 import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(value = Include.NON_ABSENT)
 public class VehicleModelBean {
+    @FilteredView(filters = {FiltersModel.Brand})
     private BrandBean brand;
     /**
      * If this model belongs to a long line (like 'mustang'), this is the line model.
@@ -43,6 +46,8 @@ public class VehicleModelBean {
      * Retirement date.
      */
     private Optional<Instant> retirement;
+    @FilteredView(filters = {FiltersModel.Market})
     private Map<String, MarketDataBean> marketData;
+    @FilteredView(filters = {FiltersModel.Parts})
     private Map<String, VehiclePartBean> parts;
 }

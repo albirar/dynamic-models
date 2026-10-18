@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
+import cat.albirar.dynmod.demo.models.filters.FilteredView;
+import cat.albirar.dynmod.demo.models.filters.FiltersModel;
 import lombok.Data;
 
 @Data
@@ -13,6 +15,8 @@ public class VehiclePartBean {
     private String partNumber;
     private String name;
     private String mountingReference;
+    @FilteredView(filters = {FiltersModel.Economic})
     private float marketPrice;
+    @FilteredView(filters = {FiltersModel.Economic})
     private float margin;
 }

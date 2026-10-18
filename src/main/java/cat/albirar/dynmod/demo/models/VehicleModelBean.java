@@ -14,8 +14,14 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(value = Include.NON_ABSENT)
 public class VehicleModelBean {
-    private String brand;
-    private String brandLine;
+    private String brandId;
+    /**
+     * If this model belongs to a long line (like 'mustang'), this is the line model.
+     */
+    private String line;
+    /**
+     * Model name.
+     */
     private String model;
     private VehicleType type;
     private Instant inception;

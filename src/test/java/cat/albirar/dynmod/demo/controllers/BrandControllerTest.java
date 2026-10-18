@@ -33,7 +33,6 @@ class BrandControllerTest {
     @Mock
     private ConversionService conversionService;
 
-    @InjectMocks
     private BrandController brandController;
 
     private BrandEntity toyotaEntity;
@@ -42,6 +41,8 @@ class BrandControllerTest {
 
     @BeforeEach
     void setUp() {
+        brandController = new BrandController(brandService, conversionService);
+        
         toyotaEntity = new BrandEntity();
         toyotaEntity.setManufacturerWMI("TOY");
         toyotaEntity.setCommercialBrandName("Toyota");
@@ -54,7 +55,7 @@ class BrandControllerTest {
         toyotaBean.setManufacturer("Toyota Motor Corporation");
         toyotaBean.setCountry("US");
 
-        pageable = PageRequest.of(0, 10);
+        pageable = PageRequest.of(0, 2);
     }
 
     @Test

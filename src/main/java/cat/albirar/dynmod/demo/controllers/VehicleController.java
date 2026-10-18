@@ -21,11 +21,15 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/vehicles")
-@RequiredArgsConstructor
 public class VehicleController {
 
     private final VehicleService vehicleService;
     private final ConversionService conversionService;
+
+    public VehicleController(VehicleService vehicleService, ConversionService conversionService) {
+        this.vehicleService = vehicleService;
+        this.conversionService = conversionService;
+    }
 
     @GetMapping
     public PagedResponse<VehicleModelBean> searchVehicles(
@@ -33,7 +37,7 @@ public class VehicleController {
             @RequestParam(required = false) String country,
             @RequestParam(required = false) VehicleTypeEntity type,
             @RequestParam(required = false) String commercialNamePattern,
-            @PageableDefault(size = 10) Pageable pageable) {
+            Pageable pageable) {
 
         VehicleSearchCriteria criteria = new VehicleSearchCriteria();
         criteria.setBrandManufacturerWMI(brandManufacturerWMI);

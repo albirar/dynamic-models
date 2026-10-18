@@ -18,18 +18,22 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/brands")
-@RequiredArgsConstructor
 public class BrandController {
 
     private final BrandService brandService;
     private final ConversionService conversionService;
+
+    public BrandController(BrandService brandService, ConversionService conversionService) {
+        this.brandService = brandService;
+        this.conversionService = conversionService;
+    }
 
     @GetMapping
     public PagedResponse<BrandBean> searchBrands(
             @RequestParam(required = false) String manufacturer,
             @RequestParam(required = false) String country,
             @RequestParam(required = false) String commercialBrandNamePattern,
-            @PageableDefault(size = 10) Pageable pageable) {
+            Pageable pageable) {
 
         BrandSearchCriteria criteria = new BrandSearchCriteria();
         criteria.setManufacturer(manufacturer);

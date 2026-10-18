@@ -35,7 +35,6 @@ class VehicleControllerTest {
     @Mock
     private ConversionService conversionService;
 
-    @InjectMocks
     private VehicleController vehicleController;
 
     private VehicleEntity toyotaCorollaEntity;
@@ -45,11 +44,13 @@ class VehicleControllerTest {
 
     @BeforeEach
     void setUp() {
+        vehicleController = new VehicleController(vehicleService, conversionService);
+        
         toyotaBrandEntity = new BrandEntity();
         toyotaBrandEntity.setManufacturerWMI("TOY");
         toyotaBrandEntity.setCommercialBrandName("Toyota");
         toyotaBrandEntity.setManufacturer("Toyota Motor Corporation");
-        toyotaBrandEntity.setCountry("JP");
+        toyotaBrandEntity.setCountry("US");
 
         toyotaCorollaEntity = new VehicleEntity();
         toyotaCorollaEntity.setId(1L);
@@ -62,7 +63,7 @@ class VehicleControllerTest {
         toyotaCorollaBean = new VehicleModelBean();
         toyotaCorollaBean.setModel("Corolla");
 
-        pageable = PageRequest.of(0, 10);
+        pageable = PageRequest.of(0, 2);
     }
 
     @Test

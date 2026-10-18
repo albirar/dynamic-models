@@ -13,12 +13,14 @@ import org.springframework.web.server.ResponseStatusException;
 import cat.albirar.dynmod.demo.criteria.VehicleSearchCriteria;
 import cat.albirar.dynmod.demo.entity.VehicleEntity;
 import cat.albirar.dynmod.demo.entity.VehicleTypeEntity;
+import cat.albirar.dynmod.demo.filters.EnableModelFiltering;
 import cat.albirar.dynmod.demo.models.VehicleModelBean;
 import cat.albirar.dynmod.demo.response.PagedResponse;
 import cat.albirar.dynmod.demo.service.VehicleService;
 
 @RestController
 @RequestMapping("/vehicles")
+@EnableModelFiltering
 public class VehicleController {
 
     private final VehicleService vehicleService;

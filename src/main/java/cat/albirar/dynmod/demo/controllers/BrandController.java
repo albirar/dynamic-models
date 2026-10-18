@@ -10,12 +10,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import cat.albirar.dynmod.demo.criteria.BrandSearchCriteria;
 import cat.albirar.dynmod.demo.entity.BrandEntity;
+import cat.albirar.dynmod.demo.filters.EnableModelFiltering;
 import cat.albirar.dynmod.demo.models.BrandBean;
 import cat.albirar.dynmod.demo.response.PagedResponse;
 import cat.albirar.dynmod.demo.service.BrandService;
 
 @RestController
 @RequestMapping("/brands")
+@EnableModelFiltering
 public class BrandController {
 
     private final BrandService brandService;

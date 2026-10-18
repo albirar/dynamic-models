@@ -12,7 +12,6 @@ import cat.albirar.dynmod.demo.config.ApplicationProperties;
 @EnableJpaRepositories(basePackages = "cat.albirar.dynmod.demo.repository")
 public class DemoApplication {
 
-	@SuppressWarnings("null")
 	public static void main(String[] args) {
 		SpringApplication.run(DemoApplication.class, args);
 	}

@@ -1,7 +1,5 @@
 package cat.albirar.dynmod.demo.criteria;
 
-import java.util.Locale;
-
 import lombok.Data;
 
 @Data

@@ -16,7 +16,6 @@ import cat.albirar.dynmod.demo.entity.VehicleEntity;
 import cat.albirar.dynmod.demo.entity.VehicleMarketDataEntity;
 import cat.albirar.dynmod.demo.entity.VehiclePartEntity;
 import cat.albirar.dynmod.demo.entity.VehicleTypeEntity;
-import cat.albirar.dynmod.demo.models.BrandBean;
 import cat.albirar.dynmod.demo.models.MarketDataBean;
 import cat.albirar.dynmod.demo.models.VehicleModelBean;
 import cat.albirar.dynmod.demo.models.VehiclePartBean;

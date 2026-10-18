@@ -3,7 +3,6 @@ package cat.albirar.dynmod.demo.controllers;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,7 +16,6 @@ import cat.albirar.dynmod.demo.entity.VehicleTypeEntity;
 import cat.albirar.dynmod.demo.models.VehicleModelBean;
 import cat.albirar.dynmod.demo.response.PagedResponse;
 import cat.albirar.dynmod.demo.service.VehicleService;
-import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/vehicles")

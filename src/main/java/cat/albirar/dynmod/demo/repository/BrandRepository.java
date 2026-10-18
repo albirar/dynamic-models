@@ -1,17 +1,12 @@
 package cat.albirar.dynmod.demo.repository;
 
-import java.util.List;
-import java.util.Locale;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.stereotype.Repository;
 
 import cat.albirar.dynmod.demo.entity.BrandEntity;
 
-@Repository
 public interface BrandRepository extends JpaRepository<BrandEntity, String>, JpaSpecificationExecutor<BrandEntity> {
     Page<BrandEntity> findByCountry(String country, Pageable pageable);
     Page<BrandEntity> findByManufacturer(String manufacturer, Pageable pageable);

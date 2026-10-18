@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 public class ApplicationConfiguration {
 
     @Bean
-    public ApplicationProperties applicationProperties() {
+    ApplicationProperties applicationProperties() {
         return new ApplicationProperties();
     }
 }

@@ -2,11 +2,13 @@ package cat.albirar.dynmod.demo.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -14,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import cat.albirar.dynmod.demo.criteria.VehicleSearchCriteria;
 import cat.albirar.dynmod.demo.entity.BrandEntity;
@@ -76,7 +79,7 @@ class VehicleServiceTest {
         criteria.setBrandManufacturerWMI("TOY");
 
         Page<VehicleEntity> page = new PageImpl<>(java.util.List.of(toyotaCorollaEntity));
-        when(vehicleRepository.findByBrand_ManufacturerWMI("TOY", pageable)).thenReturn(page);
+        when(vehicleRepository.findAll(ArgumentMatchers.<Specification<VehicleEntity>>any(), eq(pageable))).thenReturn(page);
 
         // When
         Page<VehicleEntity> result = vehicleService.searchVehicles(criteria, pageable);
@@ -94,7 +97,7 @@ class VehicleServiceTest {
         criteria.setCountry("JP");
 
         Page<VehicleEntity> page = new PageImpl<>(java.util.List.of(toyotaCorollaEntity));
-        when(vehicleRepository.findByBrand_Country("JP", pageable)).thenReturn(page);
+        when(vehicleRepository.findAll(ArgumentMatchers.<Specification<VehicleEntity>>any(), eq(pageable))).thenReturn(page);
 
         // When
         Page<VehicleEntity> result = vehicleService.searchVehicles(criteria, pageable);
@@ -111,7 +114,7 @@ class VehicleServiceTest {
         criteria.setType(VehicleTypeEntity.Sedan);
 
         Page<VehicleEntity> page = new PageImpl<>(java.util.List.of(toyotaCorollaEntity));
-        when(vehicleRepository.findByType(VehicleTypeEntity.Sedan, pageable)).thenReturn(page);
+        when(vehicleRepository.findAll(ArgumentMatchers.<Specification<VehicleEntity>>any(), eq(pageable))).thenReturn(page);
 
         // When
         Page<VehicleEntity> result = vehicleService.searchVehicles(criteria, pageable);
@@ -128,7 +131,7 @@ class VehicleServiceTest {
         criteria.setCommercialNamePattern("Corolla");
 
         Page<VehicleEntity> page = new PageImpl<>(java.util.List.of(toyotaCorollaEntity));
-        when(vehicleRepository.findByMarketData_CommercialNameContainingIgnoreCase("Corolla", pageable)).thenReturn(page);
+        when(vehicleRepository.findAll(ArgumentMatchers.<Specification<VehicleEntity>>any(), eq(pageable))).thenReturn(page);
 
         // When
         Page<VehicleEntity> result = vehicleService.searchVehicles(criteria, pageable);
@@ -144,7 +147,7 @@ class VehicleServiceTest {
         VehicleSearchCriteria criteria = new VehicleSearchCriteria();
 
         Page<VehicleEntity> page = new PageImpl<>(java.util.List.of(toyotaCorollaEntity, fordMustangEntity));
-        when(vehicleRepository.findAll(pageable)).thenReturn(page);
+        when(vehicleRepository.findAll(ArgumentMatchers.<Specification<VehicleEntity>>any(), eq(pageable))).thenReturn(page);
 
         // When
         Page<VehicleEntity> result = vehicleService.searchVehicles(criteria, pageable);
@@ -152,5 +155,24 @@ class VehicleServiceTest {
         // Then
         assertNotNull(result);
         assertEquals(2, result.getTotalElements());
+    }
+
+    @Test
+    void searchVehicles_WithMultipleCriteria_ShouldReturnFilteredResults() {
+        // Given
+        VehicleSearchCriteria criteria = new VehicleSearchCriteria();
+        criteria.setBrandManufacturerWMI("TOY");
+        criteria.setType(VehicleTypeEntity.Sedan);
+
+        Page<VehicleEntity> page = new PageImpl<>(java.util.List.of(toyotaCorollaEntity));
+        when(vehicleRepository.findAll(ArgumentMatchers.<Specification<VehicleEntity>>any(), eq(pageable))).thenReturn(page);
+
+        // When
+        Page<VehicleEntity> result = vehicleService.searchVehicles(criteria, pageable);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals("Corolla", result.getContent().get(0).getModel());
     }
 }

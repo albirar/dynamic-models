@@ -1,4 +1,4 @@
-package cat.albirar.dynmod.config;
+package cat.albirar.dynmod.demo.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -7,7 +7,6 @@ import org.springframework.core.convert.support.DefaultConversionService;
 
 import cat.albirar.dynmod.demo.converter.BrandEntityToBrandBeanConverter;
 import cat.albirar.dynmod.demo.converter.VehicleEntityToVehicleModelBeanConverter;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
@@ -18,7 +17,7 @@ public class ConversionConfiguration {
     private final VehicleEntityToVehicleModelBeanConverter vehicleEntityToVehicleModelBeanConverter;
 
     @Bean
-    public ConversionService conversionService() {
+    ConversionService conversionService() {
         DefaultConversionService conversionService = new DefaultConversionService();
         conversionService.addConverter(brandEntityToBrandBeanConverter);
         conversionService.addConverter(vehicleEntityToVehicleModelBeanConverter);

@@ -1,7 +1,5 @@
 package cat.albirar.dynmod.demo.converter;
 
-import java.util.Locale;
-
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.stereotype.Component;
 

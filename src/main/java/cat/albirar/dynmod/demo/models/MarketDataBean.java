@@ -2,7 +2,6 @@ package cat.albirar.dynmod.demo.models;
 
 import java.time.Instant;
 import java.util.Currency;
-import java.util.Locale.IsoCountryCode;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;

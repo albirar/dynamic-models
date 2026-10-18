@@ -1,7 +1,5 @@
 package cat.albirar.dynmod.demo.entity;
 
-import java.util.Locale;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

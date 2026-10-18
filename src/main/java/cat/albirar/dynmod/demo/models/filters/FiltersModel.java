@@ -7,7 +7,7 @@ public enum FiltersModel {
 	Brand("B"),
 	Market("M"),
 	Parts("P"),
-	Economic("C")
+	Economic("E")
 	;
 	private String code;
 	private FiltersModel(String code) {

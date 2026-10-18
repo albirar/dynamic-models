@@ -13,7 +13,7 @@ import lombok.Data;
 @Table(name = "brands")
 public class BrandEntity {
     @Id
-    @Column(name = "manufacturer_wmi", length = 3, nullable = false)
+    @Column(name = "manufacturer_wmi", length = 10, nullable = false)
     private String manufacturerWMI;
 
     @Column(name = "commercial_brand_name", length = 100, nullable = false)

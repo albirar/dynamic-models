@@ -28,11 +28,16 @@ public class VehicleEntityToVehicleModelBeanConverter implements Converter<Vehic
 
     @Override
     public VehicleModelBean convert(VehicleEntity source) {
+        if (source == null) {
+            return new VehicleModelBean();
+        }
         VehicleModelBean target = new VehicleModelBean();
         
         // Brand
-        BrandBean brandBean = brandConverter.convert(source.getBrand());
-        target.setBrand(brandBean);
+        if (source.getBrand() != null) {
+            BrandBean brandBean = brandConverter.convert(source.getBrand());
+            target.setBrand(brandBean);
+        }
         
         // Line
         target.setLine(Optional.ofNullable(source.getLine()));
@@ -41,8 +46,10 @@ public class VehicleEntityToVehicleModelBeanConverter implements Converter<Vehic
         target.setModel(source.getModel());
         
         // Type
-        VehicleType type = VehicleType.valueOf(source.getType().name());
-        target.setType(type);
+        if (source.getType() != null) {
+            VehicleType type = VehicleType.valueOf(source.getType().name());
+            target.setType(type);
+        }
         
         // Years
         target.setInceptionYear(source.getInceptionYear());
@@ -54,9 +61,9 @@ public class VehicleEntityToVehicleModelBeanConverter implements Converter<Vehic
         
         // Market Data
         if (source.getMarketData() != null && !source.getMarketData().isEmpty()) {
-            Map<Locale.IsoCountryCode, MarketDataBean> marketDataMap = source.getMarketData().stream()
+            Map<String, MarketDataBean> marketDataMap = source.getMarketData().stream()
                 .collect(Collectors.toMap(
-                    md -> Locale.IsoCountryCode.valueOf(md.getCountry()),
+                    VehicleMarketDataEntity::getCountry,
                     this::convertMarketData
                 ));
             target.setMarketData(marketDataMap);
@@ -77,7 +84,7 @@ public class VehicleEntityToVehicleModelBeanConverter implements Converter<Vehic
 
     private MarketDataBean convertMarketData(VehicleMarketDataEntity source) {
         MarketDataBean target = new MarketDataBean();
-        target.setCountry(Locale.IsoCountryCode.valueOf(source.getCountry()));
+        target.setCountry(source.getCountry());
         target.setStartCommercializing(source.getStartCommercializing());
         target.setEndCommercializing(source.getEndCommercializing());
         target.setCommercialName(source.getCommercialName());

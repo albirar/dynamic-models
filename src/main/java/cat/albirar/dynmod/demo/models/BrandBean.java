@@ -19,7 +19,7 @@ public class BrandBean {
      */
     private String manufacturer;
     /**
-     * País de la marca, encara que no coincideixi amb el manufacturer
+     * País de la marca, encara que no coincideixi amb el manufacturer (ISO 3166-1 alpha-2 code)
      */
-    private Locale.IsoCountryCode country;
+    private String country;
 }

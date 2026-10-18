@@ -12,11 +12,14 @@ import cat.albirar.dynmod.demo.models.BrandBean;
 public class BrandEntityToBrandBeanConverter implements Converter<BrandEntity, BrandBean> {
     @Override
     public BrandBean convert(BrandEntity source) {
+        if (source == null) {
+            return new BrandBean();
+        }
         BrandBean target = new BrandBean();
         target.setManufacturerWMI(source.getManufacturerWMI());
         target.setCommercialBrandName(source.getCommercialBrandName());
         target.setManufacturer(source.getManufacturer());
-        target.setCountry(Locale.IsoCountryCode.valueOf(source.getCountry()));
+        target.setCountry(source.getCountry());
         return target;
     }
 }

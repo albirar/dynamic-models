@@ -18,7 +18,7 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(value = Include.NON_ABSENT)
 public class MarketDataBean {
-    private IsoCountryCode country;
+    private String country;
     private Instant startCommercializing;
     private Instant endCommercializing;
     private String commercialName;

@@ -44,6 +44,6 @@ public class VehicleModelBean {
      * Retirement date.
      */
     private Optional<Instant> retirement;
-    private Map<Locale.IsoCountryCode, MarketDataBean> marketData;
+    private Map<String, MarketDataBean> marketData;
     private Map<String, VehiclePartBean> parts;
 }

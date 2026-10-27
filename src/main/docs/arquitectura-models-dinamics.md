@@ -1,5 +1,7 @@
 # Arquitectura de filtratge de models en respostes REST
 
+**Català** · [English](arquitectura-models-dinamics.en.md) · [Español](arquitectura-models-dinamics.es.md)
+  
 ## 1. Objectiu i abast
 
 Aquest document descriu una arquitectura reutilitzable per permetre que un consumidor REST seleccioni seccions d'un DTO JSON mitjançant codis compactes. El servei manté un únic model de resposta; la selecció s'aplica durant la serialització.

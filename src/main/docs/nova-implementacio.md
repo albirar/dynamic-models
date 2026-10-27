@@ -1,5 +1,7 @@
 # Nova Implementació de Filtratge de Models - Anàlisi i Proposta
 
+**Català** · [English](nova-implementacio.en.md) · [Español](nova-implementacio.es.md)
+
 ## Taula de Continguts
 1. [Introducció](#1-introducció)
 2. [Comparació entre Implementacions](#2-comparació-entre-implementacions)

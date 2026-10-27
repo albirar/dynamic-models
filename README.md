@@ -1,5 +1,7 @@
 # Models dinàmics en API REST
 
+**Català** · [English](README.en.md) · [Español](README.es.md)
+
 Prova de concepte d'una API REST en què **el client decideix quines seccions del model vol rebre**, amb codis compactes enviats com a query parameter o header:
 
 ```http

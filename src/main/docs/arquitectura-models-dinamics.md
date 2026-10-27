@@ -180,32 +180,49 @@ Així, un client pot fixar una selecció per defecte amb el header (per exemple,
 
 ## 5. Flux de resposta
 
+El diagrama correspon a la implementació actual del projecte (Spring Boot 4 / Jackson 3, vegeu la [secció 11](#11-adaptació-a-spring-boot-4-spring-framework-7-i-jackson-3)). La selecció no s'embolcalla amb el cos: l'advice la desa com a atribut de la petició i la retorna com a hint `FilterProvider` a `determineWriteHints`.
+
 ```mermaid
 sequenceDiagram
     participant C as Client REST
     participant M as Spring MVC
     participant A as ModelFilteringAdvice
     participant R as ModelSelection
-    participant H as HttpMessageConverter
-    participant J as Jackson / ModelFilteringModule
+    participant H as JacksonJsonHttpMessageConverter
+    participant J as Jackson (mapper privat + ModelFilteringModule)
 
     C->>M: Petició a endpoint
-    M->>A: Abans d'escriure el cos
-    A->>A: Comprova anotació endpoint; llegeix query parameter o, si és absent, header
-    alt Endpoint sense anotació o selecció absent
-        A-->>H: Cos original, sense filtratge
+    M->>A: supports(): convertidor Jackson i @ModelFiltering?
+    alt Endpoint sense @ModelFiltering
+        A-->>M: false (l'advice no intervé)
+        M->>H: write(cos original, sense hints)
         H->>J: Serialització normal
-    else Selecció present
-        A->>R: Parseja codis una vegada
-        alt Codi invàlid o valor repetit
-            R-->>A: Error de validació
-            A-->>C: HTTP 400
-        else Selecció vàlida
-            R-->>A: ModelSelection immutable
-            A-->>H: Cos embolcallat amb selecció
-            H->>J: ObjectWriter amb atribut per resposta
-            J->>J: Serialitza propietats i aplica marques recursivament
-            J-->>C: JSON filtrat
+        J-->>C: JSON complet
+    else Endpoint amb @ModelFiltering
+        M->>A: beforeBodyWrite()
+        A->>A: Afegeix el header a Vary (sempre)
+        A->>A: Si l'estat no és d'error, llegeix el query parameter<br/>o, només si és absent, el header
+        alt Selecció invàlida
+            Note over A,R: Més d'un valor (detectat per l'advice) o codi desconegut (ModelSelection.parse)
+            A--)M: ModelFilteringException (ResponseStatusException 400)
+            M-->>C: HTTP 400
+        else Selecció vàlida o absent
+            opt Selecció present
+                A->>R: parse(valor)
+                R-->>A: ModelSelection immutable
+                A->>A: Desa la selecció com a atribut de la petició
+            end
+            A-->>M: Cos original, sense embolcallar
+            M->>A: determineWriteHints()
+            A-->>M: Hint ModelFilterProvider(selecció),<br/>o cap hint si no hi ha atribut
+            M->>H: write(cos, hints)
+            alt Amb hint
+                H->>J: ObjectWriter.with(FilterProvider de la resposta)
+            else Sense hint
+                H->>J: FilterProvider per defecte del mapper<br/>(inclou totes les propietats)
+            end
+            J->>J: Beans marcats filtrats per ModelSectionsPropertyFilter,<br/>beans sense marques intactes,<br/>cascada a fills, llistes, arrays i mapes
+            J-->>C: JSON filtrat (o complet si no hi ha selecció)
         end
     end
 ```

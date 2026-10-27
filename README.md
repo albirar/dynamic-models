@@ -241,3 +241,5 @@ scripts/smoke-test.sh http://localhost:8080   # fum contra una instància en mar
 | Integració | Condicions d'auto-configuració; context Boot real amb `MockMvc` (formes de resposta, header i query parameter, preferència, `Vary`, errors, herència d'anotacions) |
 | E2E | Servidor HTTP real amb les dades de `data.sql`: seccions i cascada, totes les seccions equivalen al model complet, header equivalent al query parameter, preferència, errors 400, cerca i paginació, peticions concurrents |
 | Fum | L'aplicació arrenca, els endpoints principals responen, el filtratge està actiu i l'OpenAPI es publica |
+
+

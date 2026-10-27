@@ -33,8 +33,9 @@ import tools.jackson.databind.ser.FilterProvider;
 /**
  * Applies the model selection of endpoints annotated with {@link ModelFiltering}.
  * <p>
- * {@link #beforeBodyWrite} validates the selection, adds {@code Vary} for header sources and
- * stores the selection as a request attribute. {@link #determineWriteHints}, which Spring calls
+ * {@link #beforeBodyWrite} reads the selection from the query parameter or, when the parameter
+ * is absent, from the header; it validates it, adds the header to {@code Vary} and stores the
+ * selection as a request attribute. {@link #determineWriteHints}, which Spring calls
  * afterwards without the request, turns it into a per-response {@link FilterProvider} hint.
  * Without selection the body is written as usual.
  */
@@ -66,18 +67,19 @@ public class ModelFilteringAdvice implements ResponseBodyAdvice<Object> {
             ServerHttpResponse response) {
 
         ModelFiltering filtering = findAnnotation(returnType).orElseThrow();
-        String name = filtering.name().isEmpty() ? filtering.source().getDefaultName() : filtering.name();
 
-        if (filtering.source() == ModelFilterSource.HEADER) {
-            addVary(response.getHeaders(), name);
-        }
+        // The header can change the response whenever the query parameter is absent
+        addVary(response.getHeaders(), filtering.header());
         if (isError(response) || !(request instanceof ServletServerHttpRequest servletRequest)) {
             return body;
         }
 
-        List<String> values = filtering.source() == ModelFilterSource.HEADER
-                ? request.getHeaders().get(name)
-                : queryParameterValues(request, name);
+        String name = filtering.queryParam();
+        List<String> values = queryParameterValues(request, name);
+        if (values == null) {
+            name = filtering.header();
+            values = request.getHeaders().get(name);
+        }
         if (values == null || values.isEmpty()) {
             return body;
         }

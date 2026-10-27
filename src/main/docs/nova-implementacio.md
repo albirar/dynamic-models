@@ -60,7 +60,7 @@ Els tests no ho detectaven perquè cap no passa per la capa de serialització HT
 | **Format Codis** | Separats per comes (`B,P,E`), sense distingir majúscules | Concatenats (`BPE`), distingint majúscules | ⚠️ Canvi d'API |
 | **Anotacions** | `@FilteredView(filters={...})` | `@ModelBasic` + `@ModelSections({...})` | ✅ Proposada més expressiva |
 | **Cascada** | Via ThreadLocal | Via el mateix `FilterProvider` de l'`ObjectWriter` | ✅ Proposada més elegant |
-| **Vary Header** | No implementat | Implementat per headers | ✅ Proposada millor per caches |
+| **Vary Header** | No implementat | Sempre a endpoints filtrats | ✅ Proposada millor per caches |
 | **Aïllament** | `ObjectMapper` Jackson 2 global (no usat per MVC) | Còpia privada del `JsonMapper` per al convertidor MVC de servidor | ✅ Proposada més aïllada |
 | **Compatibilitat Boot 4** | ❌ Trencada (HTTP 500) | ✅ Dissenyada per Spring 7 / Jackson 3 | ✅ Proposada |
 
@@ -119,10 +119,10 @@ public class VehicleModelBean {
 |-------------|------------|---------------|
 | **Paràmetre** | `m` (query) | `m` (query) |
 | **Header** | `x-filter-model` | `X-Model-Sections` |
-| **Origen** | Paràmetre i, si no hi és, header | **Exclusiu**: el declarat a `@ModelFiltering` |
+| **Origen** | Paràmetre i, si no hi és, header | Paràmetre i, si no hi és, header (header ignorat i no validat si hi ha paràmetre) |
 | **Validació** | 400 per codis invàlids | 400 per codis invàlids o valor repetit |
 | **Format** | `B,P,E` | `BPE` |
-| **Vary Header** | No implementat | `Vary: X-Model-Sections` quan l'origen és header |
+| **Vary Header** | No implementat | `Vary: X-Model-Sections` a totes les respostes d'endpoints filtrats |
 
 ### 2.3. Avantatges de la Implementació Actual
 
@@ -156,7 +156,7 @@ public class VehicleModelBean {
 
 ✅ **Més robusta**: validació estricta, distinció entre bàsic i seccions, detecció de configuracions incorrectes.
 
-✅ **Més flexible**: origen (query/header) i nom personalitzables per endpoint.
+✅ **Més flexible**: query parameter i header utilitzables alhora, amb noms personalitzables per endpoint.
 
 ---
 
@@ -226,7 +226,6 @@ src/main/java/cat/albirar/dynmod/
 │   │   └── ModelFilterProvider.java
 │   └── web/                                 # Integració Spring MVC
 │       ├── ModelFiltering.java              # Opt-in (sense dependències de Spring)
-│       ├── ModelFilterSource.java
 │       ├── ModelFilteringAdvice.java
 │       ├── ModelFilteringException.java     # 400
 │       └── ModelFilteringAutoConfiguration.java
@@ -262,16 +261,13 @@ public @interface ModelBasic {}
 @Retention(RUNTIME) @Target({FIELD, METHOD})
 public @interface ModelSections { ModelPart[] value() default {}; }
 
-public enum ModelFilterSource {
-    QUERY_PARAM("m"),
-    HEADER("X-Model-Sections");
-    // defaultName
-}
-
 @Retention(RUNTIME) @Target({TYPE, METHOD})
 public @interface ModelFiltering {
-    ModelFilterSource source() default ModelFilterSource.QUERY_PARAM;
-    String name() default "";
+    String DEFAULT_QUERY_PARAM = "m";
+    String DEFAULT_HEADER = "X-Model-Sections";
+
+    String queryParam() default DEFAULT_QUERY_PARAM;
+    String header() default DEFAULT_HEADER;
 }
 ```
 
@@ -338,10 +334,11 @@ public class ModelFilteringAdvice implements ResponseBodyAdvice<Object> {
     public Object beforeBodyWrite(Object body, MethodParameter returnType, MediaType contentType,
             Class<? extends HttpMessageConverter<?>> converterType,
             ServerHttpRequest request, ServerHttpResponse response) {
-        // 1. Si l'origen és HEADER: afegir el nom a Vary (sense duplicar, respectant "Vary: *")
+        // 1. Afegir el nom del header a Vary (sense duplicar, respectant "Vary: *")
         // 2. Si la resposta ja és d'error (status >= 400): no fer res més
-        // 3. Llegir exactament l'origen declarat; absent → retornar el cos sense canvis
-        // 4. Més d'un valor → ModelFilteringException (400)
+        // 3. Llegir el query parameter; si és absent, llegir el header; tots dos absents → cos sense canvis
+        //    (si hi ha query parameter, el header s'ignora i no es valida)
+        // 4. Més d'un valor a l'origen utilitzat → ModelFilteringException (400)
         // 5. ModelSelection.parse(valor); codi invàlid → ModelFilteringException (400)
         // 6. Desar la selecció com a atribut de la petició
     }
@@ -415,7 +412,7 @@ S'eliminen la configuració de Jackson 2 (`FilterConfiguration`) i les dependèn
 #### Fase 1: Biblioteca
 - [x] Paquet `filtering.model`: `ModelPart`, `ModelBasic`, `ModelSections`, `ModelSelection`
 - [x] Paquet `filtering.jackson`: mòdul, introspector, filtre i proveïdor
-- [x] Paquet `filtering.web`: `ModelFiltering`, `ModelFilterSource`, advice, excepció, auto-configuració
+- [x] Paquet `filtering.web`: `ModelFiltering`, advice, excepció, auto-configuració
 - [x] Registre a `AutoConfiguration.imports`
 
 #### Fase 2: Adaptació
@@ -432,10 +429,13 @@ S'eliminen la configuració de Jackson 2 (`FilterConfiguration`) i les dependèn
 - [x] `ModelSelection`: codis vàlids, desconeguts, majúscules/minúscules, duplicats, buit
 - [x] Mòdul Jackson: bàsic, una secció, OR, secció buida, sense marca, bean sense marques, conflicte de marques, `@JsonFilter` combinat, cascada a llistes i mapes, `NON_NULL`, `@JsonIgnore`, `Optional`/`Instant`, concurrència
 - [x] Auto-configuració: sense propietat, propietat falsa i certa
-- [x] Context Boot real + `MockMvc`: endpoints reals, query/header, nom personalitzat, absència, buit, repetit, sense fallback, sense anotació, anotació a mètode/classe/interfície/superclasse, substitució de la de classe, `ResponseEntity`, llistes, arrays, mapes, `Page`, errors preservats, `Vary` acumulatiu
+- [x] Context Boot real + `MockMvc`: endpoints reals, query/header, preferència del query parameter, header ignorat si hi ha query parameter, noms personalitzats, absència, buit, repetit, sense anotació, anotació a mètode/classe/interfície/superclasse, substitució de la de classe, `ResponseEntity`, llistes, arrays, mapes, `Page`, errors preservats, `Vary` acumulatiu
+
+- [x] E2E sobre servidor HTTP real (`ApiE2ETest`, etiqueta `e2e`): tota la cadena HTTP → MVC → JPA → H2 → JSON amb les dades de `data.sql`; seccions i cascada, totes les seccions = model complet, header = query parameter, preferència, errors 400, `Vary`, endpoints sense anotació, cerca i paginació, concurrència
+- [x] Proves de fum (`SmokeTest`, etiqueta `smoke`) i `scripts/smoke-test.sh` per a entorns desplegats
 
 #### Fase 5: Validació
-- [x] Aixecar l'aplicació i comprovar `/vehicles` i `/brands` amb i sense selecció
+- [x] Aixecar l'aplicació (JAR empaquetat) i passar `scripts/smoke-test.sh`
 
 ### 5.2. Canvis d'API
 
@@ -444,7 +444,7 @@ S'eliminen la configuració de Jackson 2 (`FilterConfiguration`) i les dependèn
 | **Format codis** | `B,P,E` | `BPE` | ⚠️ **Breaking change** |
 | **Majúscules** | Indiferent | Distingeix | ⚠️ **Breaking change** (`b` ja no és vàlid) |
 | **Header** | `x-filter-model` | `X-Model-Sections` | ⚠️ **Breaking change** |
-| **Origen** | Paràmetre > header | Exclusiu (paràmetre per defecte) | ⚠️ El header s'ignora en endpoints de query |
+| **Origen** | Paràmetre > header | Paràmetre > header | ✅ Sense canvis (el header ignorat ja no es valida) |
 | **Camps sense marca** | Sempre inclosos | Omesos amb selecció si el bean té marques | ⚠️ Cal marcar els camps bàsics |
 | **Propietat** | `spring.application.models.filtered` | `models.filtratge` | ⚠️ Configuració |
 
@@ -453,7 +453,7 @@ Com que la implementació actual retorna 500 sobre HTTP, a la pràctica cap cons
 ### 5.3. Estratègia de Desplegament
 
 1. Desplegar en desenvolupament i validar.
-2. Publicar el contracte (codis i origen per endpoint) a la documentació de l'API.
+2. Publicar el contracte (codis, query parameter i header per endpoint) a la documentació de l'API.
 3. Comunicar els canvis als consumidors.
 4. Validar en l'entorn de proves amb consumidors.
 5. Desplegar en producció.

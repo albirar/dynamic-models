@@ -44,6 +44,8 @@ import tools.jackson.databind.json.JsonMapper;
 @AutoConfigureMockMvc
 class ModelFilteringWebTest {
 
+    private static final String HEADER = ModelFiltering.DEFAULT_HEADER;
+
     @SpringBootConfiguration
     @EnableAutoConfiguration
     @Import({ ClassAnnotatedController.class, PlainController.class, InterfaceMethodController.class,
@@ -56,6 +58,7 @@ class ModelFilteringWebTest {
             @ModelBasic String id,
             @ModelBasic String nullable,
             @ModelSections(ModelPart.BRAND) String brand,
+            @ModelSections(ModelPart.MARKET) String market,
             @ModelSections(ModelPart.PARTS) List<Child> children,
             String unmarked) {
     }
@@ -64,7 +67,7 @@ class ModelFilteringWebTest {
     }
 
     static Item item() {
-        return new Item("1", null, "brand", List.of(new Child("child", 10)), "unmarked");
+        return new Item("1", null, "brand", "market", List.of(new Child("child", 10)), "unmarked");
     }
 
     @RestController
@@ -102,26 +105,13 @@ class ModelFilteringWebTest {
             return new PageImpl<>(List.of(ModelFilteringWebTest.item()));
         }
 
-        @GetMapping("/header")
-        @ModelFiltering(source = ModelFilterSource.HEADER)
-        Item header() {
-            return ModelFilteringWebTest.item();
-        }
-
         @GetMapping("/custom")
-        @ModelFiltering(name = "sections")
-        Item custom() {
-            return ModelFilteringWebTest.item();
-        }
-
-        @GetMapping("/custom-header")
-        @ModelFiltering(source = ModelFilterSource.HEADER, name = "X-Parts")
-        ResponseEntity<Item> customHeader() {
+        @ModelFiltering(queryParam = "sections", header = "X-Parts")
+        ResponseEntity<Item> custom() {
             return ResponseEntity.ok().header(HttpHeaders.VARY, "Accept").body(ModelFilteringWebTest.item());
         }
 
         @GetMapping("/vary-all")
-        @ModelFiltering(source = ModelFilterSource.HEADER)
         ResponseEntity<Item> varyAll() {
             return ResponseEntity.ok().header(HttpHeaders.VARY, "*").body(ModelFilteringWebTest.item());
         }
@@ -170,7 +160,7 @@ class ModelFilteringWebTest {
         }
     }
 
-    @ModelFiltering(source = ModelFilterSource.HEADER)
+    @ModelFiltering(header = "X-Iface")
     interface AnnotatedTypeApi {
     }
 
@@ -196,7 +186,8 @@ class ModelFilteringWebTest {
                 .andExpect(jsonPath("$.unmarked").value("unmarked"))
                 .andExpect(jsonPath("$.brand").value("brand"))
                 .andExpect(jsonPath("$.children[0].price").value(10))
-                .andExpect(jsonPath("$.nullable").doesNotExist());
+                .andExpect(jsonPath("$.nullable").doesNotExist())
+                .andExpect(header().stringValues(HttpHeaders.VARY, contains(HEADER)));
     }
 
     @Test
@@ -208,6 +199,9 @@ class ModelFilteringWebTest {
                 .andExpect(jsonPath("$.children").doesNotExist())
                 .andExpect(jsonPath("$.unmarked").doesNotExist());
         mvc.perform(get("/test/item?m"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.brand").doesNotExist());
+        mvc.perform(get("/test/item").header(HEADER, ""))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.brand").doesNotExist());
     }
@@ -224,12 +218,40 @@ class ModelFilteringWebTest {
     }
 
     @Test
+    void headerIsUsedWhenQueryParameterIsAbsent() throws Exception {
+        mvc.perform(get("/test/item").header(HEADER, "B"))
+                .andExpect(jsonPath("$.brand").value("brand"))
+                .andExpect(jsonPath("$.market").doesNotExist())
+                .andExpect(header().stringValues(HttpHeaders.VARY, contains(HEADER)));
+    }
+
+    @Test
+    void queryParameterTakesPrecedenceOverHeader() throws Exception {
+        mvc.perform(get("/test/item?m=M").header(HEADER, "B"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.market").value("market"))
+                .andExpect(jsonPath("$.brand").doesNotExist());
+        // The ignored header is not validated
+        mvc.perform(get("/test/item?m=M").header(HEADER, "XYZ"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.market").value("market"));
+        mvc.perform(get("/test/item?m=M").header(HEADER, "B", "P"))
+                .andExpect(status().isOk());
+        // An empty query parameter is a selection too
+        mvc.perform(get("/test/item?m=").header(HEADER, "B"))
+                .andExpect(jsonPath("$.brand").doesNotExist());
+    }
+
+    @Test
     void invalidOrRepeatedSelectionIsBadRequest() throws Exception {
         mvc.perform(get("/test/item?m=BX")).andExpect(status().isBadRequest());
         mvc.perform(get("/test/item?m=b")).andExpect(status().isBadRequest());
         mvc.perform(get("/test/item?m=B,P")).andExpect(status().isBadRequest());
         mvc.perform(get("/test/item?m=B&m=P")).andExpect(status().isBadRequest());
-        mvc.perform(get("/test/header").header("X-Model-Sections", "B", "P")).andExpect(status().isBadRequest());
+        mvc.perform(get("/test/item").header(HEADER, "BX")).andExpect(status().isBadRequest());
+        mvc.perform(get("/test/item").header(HEADER, "B", "P")).andExpect(status().isBadRequest());
+        // The query parameter is validated even when the header is valid
+        mvc.perform(get("/test/item?m=X").header(HEADER, "B")).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -246,30 +268,19 @@ class ModelFilteringWebTest {
     }
 
     @Test
-    void headerSourceHasNoFallbackAndAddsVary() throws Exception {
-        mvc.perform(get("/test/header").header("X-Model-Sections", ""))
-                .andExpect(jsonPath("$.brand").doesNotExist())
-                .andExpect(header().stringValues(HttpHeaders.VARY, contains("X-Model-Sections")));
-        // The method annotation replaces the class one: the query parameter is ignored
-        mvc.perform(get("/test/header?m=XYZ"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.brand").value("brand"))
-                .andExpect(header().stringValues(HttpHeaders.VARY, contains("X-Model-Sections")));
-        // A query endpoint ignores the header
-        mvc.perform(get("/test/item").header("X-Model-Sections", "XYZ"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.brand").value("brand"))
-                .andExpect(header().doesNotExist(HttpHeaders.VARY));
-    }
-
-    @Test
     void customNamesReplaceDefaults() throws Exception {
         mvc.perform(get("/test/custom?sections=")).andExpect(jsonPath("$.brand").doesNotExist());
-        mvc.perform(get("/test/custom?m=")).andExpect(jsonPath("$.brand").value("brand"));
-        mvc.perform(get("/test/custom-header").header("X-Parts", "B"))
+        // The method annotation replaces the class one: default names are ignored
+        mvc.perform(get("/test/custom?m=XYZ").header(HEADER, "XYZ"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.brand").value("brand"));
+        mvc.perform(get("/test/custom").header("X-Parts", "B"))
                 .andExpect(jsonPath("$.brand").value("brand"))
                 .andExpect(jsonPath("$.unmarked").doesNotExist())
                 .andExpect(header().stringValues(HttpHeaders.VARY, contains("Accept", "X-Parts")));
+        mvc.perform(get("/test/custom?sections=M").header("X-Parts", "B"))
+                .andExpect(jsonPath("$.market").value("market"))
+                .andExpect(jsonPath("$.brand").doesNotExist());
     }
 
     @Test
@@ -287,16 +298,17 @@ class ModelFilteringWebTest {
 
     @Test
     void endpointWithoutAnnotationIsNotFiltered() throws Exception {
-        mvc.perform(get("/plain/item?m=X").header("X-Model-Sections", "X"))
+        mvc.perform(get("/plain/item?m=X").header(HEADER, "X"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.unmarked").value("unmarked"));
+                .andExpect(jsonPath("$.unmarked").value("unmarked"))
+                .andExpect(header().doesNotExist(HttpHeaders.VARY));
     }
 
     @Test
     void annotationIsFoundOnInterfacesAndSuperclasses() throws Exception {
         mvc.perform(get("/iface-method/item?m=")).andExpect(jsonPath("$.brand").doesNotExist());
         mvc.perform(get("/superclass/item?m=")).andExpect(jsonPath("$.brand").doesNotExist());
-        mvc.perform(get("/iface-type/item").header("X-Model-Sections", ""))
+        mvc.perform(get("/iface-type/item").header("X-Iface", ""))
                 .andExpect(jsonPath("$.brand").doesNotExist());
     }
 

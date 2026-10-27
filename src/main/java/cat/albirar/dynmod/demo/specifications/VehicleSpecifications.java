@@ -43,6 +43,8 @@ public class VehicleSpecifications {
                 return null;
             }
             Join<VehicleEntity, ?> marketDataJoin = root.join("marketData");
+            // A vehicle can match in several markets: avoid duplicated rows and counts
+            query.distinct(true);
             return cb.like(
                 cb.lower(marketDataJoin.get("commercialName")),
                 "%" + pattern.toLowerCase() + "%"

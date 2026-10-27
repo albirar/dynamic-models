@@ -3,12 +3,10 @@ package cat.albirar.dynmod.demo.controllers;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import cat.albirar.dynmod.demo.criteria.VehicleSearchCriteria;
 import cat.albirar.dynmod.demo.entity.VehicleEntity;
@@ -54,12 +52,5 @@ public class VehicleController {
                 .toList());
 
         return response;
-    }
-
-    @GetMapping("/old")
-    public void getVehicle(
-            @RequestParam Integer size,
-            @RequestParam Integer page) {
-        throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
     }
 }

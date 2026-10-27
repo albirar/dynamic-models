@@ -21,12 +21,14 @@ En un endpoint activat:
 
 | Selecció | Comportament |
 | --- | --- |
-| Absent de l'origen configurat | No hi ha filtratge; Jackson retorna el model complet habitual. |
+| Absent del query parameter i del header | No hi ha filtratge; Jackson retorna el model complet habitual. |
 | Present i buit | Només s'inclouen propietats `@ModelBasic` i `@ModelSections` buides. |
 | Un o més codis vàlids | S'inclouen les dades bàsiques i les seccions coincidents. |
 | Codi desconegut o valor repetit | Error HTTP 400. |
 
-Un endpoint sense `@ModelFiltering` no consulta la selecció i conserva el comportament normal, encara que la petició contingui un codi incorrecte. L'origen és exclusiu: una anotació de query no consulta headers, ni una anotació de header consulta query parameters.
+Un endpoint sense `@ModelFiltering` no consulta la selecció i conserva el comportament normal, encara que la petició contingui un codi incorrecte.
+
+La selecció es pot enviar com a query parameter o com a header. Si la petició porta tots dos, el query parameter té preferència i el header s'ignora completament (ni s'aplica ni es valida). El header només s'utilitza quan el query parameter és absent.
 
 Les regles existents de Jackson continuen vigents: per exemple, `NON_NULL`, `JsonIgnore`, vistes, noms de propietats i filtres addicionals. Una propietat bàsica amb valor nul pot continuar omesa per `NON_NULL`.
 
@@ -39,8 +41,7 @@ Les anotacions públiques s'han de mantenir independents de Spring MVC per perme
 - `ModelPart`: enumerat de seccions, cada constant amb nom explícit, codi estable d'una lletra i descripció.
 - `ModelBasic`: marca una propietat que sempre s'inclou en una resposta filtrada.
 - `ModelSections`: associa una propietat a una o més seccions opcionals.
-- `ModelFiltering`: opt-in per classe o mètode; indica origen de la selecció i, opcionalment, el nom.
-- `ModelFilterSource`: `QUERY_PARAM` o `HEADER`, cadascun amb un nom per defecte.
+- `ModelFiltering`: opt-in per classe o mètode; permet canviar el nom del query parameter (`queryParam`, per defecte `m`) i del header (`header`, per defecte `X-Model-Sections`).
 
 Regla de combinació de marques d'una propietat:
 
@@ -88,12 +89,12 @@ Un `ResponseBodyAdvice` s'executa dins el flux de serialització MVC, també per
 
 1. Limitar `supports()` als convertidors Jackson i als endpoints amb `@ModelFiltering`.
 2. Resoldre primer l'anotació del mètode i, si no n'hi ha, la del tipus del controller. Fer servir les utilitats d'anotacions Spring perquè es contemplin metadades d'interfícies, mètodes implementats i superclasses.
-3. Resoldre `source` i `name`. Si `name` és buit, usar el valor per defecte de l'origen.
-4. Llegir exactament un query parameter o un header; no fer fallback.
+3. Resoldre els noms del query parameter i del header.
+4. Llegir el query parameter; només si és absent, llegir el header. Quan hi ha query parameter, el header no es valida.
 5. Si el valor és absent, retornar el cos original sense embolcallar-lo. Això conserva completament el camí normal de Jackson.
 6. Si és present, validar-lo i embolcallar el cos en un contenidor equivalent a `MappingJacksonValue` que transporti una instància immutable de `ModelSelection`.
 7. No substituir una vista Jackson o `FilterProvider` que ja vinguin dins un `MappingJacksonValue`.
-8. Preservar respostes d'error HTTP i afegir el nom del header a `Vary` quan l'origen és header. No eliminar valors `Vary` que ja hi siguin.
+8. Preservar respostes d'error HTTP i afegir el nom del header a `Vary` a totes les respostes de l'endpoint. No eliminar valors `Vary` que ja hi siguin.
 
 El header s'afegeix a `Vary` fins i tot si és absent a la petició: l'absència produeix el model complet, diferent d'un header present amb selecció. Això ajuda els caches HTTP a no reutilitzar una resposta incorrecta. Si `Vary: *` ja hi és, no cal afegir-hi res.
 
@@ -155,11 +156,22 @@ X-Model-Sections: cr
 
 ### Noms personalitzats
 
-L'anotació pot canviar `name`; el nom substitueix completament el valor per defecte de l'origen. No s'ha de consultar automàticament cap altra ubicació.
+L'anotació pot canviar `queryParam` i `header`; cada nom substitueix completament el seu valor per defecte.
+
+### Preferència
+
+| Query parameter | Header | Selecció aplicada |
+| --- | --- | --- |
+| Absent | Absent | Cap: model complet |
+| Absent | Present | La del header |
+| Present | Absent | La del query parameter |
+| Present | Present | La del query parameter; el header s'ignora |
+
+Així, un client pot fixar una selecció per defecte amb el header (per exemple, en un interceptor HTTP) i substituir-la puntualment per a una petició concreta amb el query parameter.
 
 ### Validació
 
-- Un sol valor per petició. Es rebutgen `?m=c&m=r` i headers amb més d'un valor.
+- Un sol valor per origen utilitzat. Es rebutgen `?m=c&m=r` i, quan s'utilitza el header, headers amb més d'un valor.
 - Els codis del valor són concatenats, no separats per comes ni espais.
 - Cada caràcter ha de correspondre exactament a un codi publicat.
 - Codis repetits dins el valor són vàlids i s'eliminen en construir el conjunt.
@@ -179,7 +191,7 @@ sequenceDiagram
 
     C->>M: Petició a endpoint
     M->>A: Abans d'escriure el cos
-    A->>A: Comprova anotació endpoint i origen declarat
+    A->>A: Comprova anotació endpoint; llegeix query parameter o, si és absent, header
     alt Endpoint sense anotació o selecció absent
         A-->>H: Cos original, sense filtratge
         H->>J: Serialització normal
@@ -228,12 +240,12 @@ class PersonaController {
     List<PersonaResponse> list() { ... }
 
     @GetMapping("/{id}")
-    @ModelFiltering(source = ModelFilterSource.HEADER)
+    @ModelFiltering(queryParam = "seccions", header = "X-Persona-Seccions")
     ResponseEntity<PersonaResponse> get() { ... }
 }
 ```
 
-La segona anotació substitueix la configuració de classe completa. Per tant, el segon endpoint usa header i no hereta el query parameter de classe.
+La segona anotació substitueix la configuració de classe completa. Per tant, el segon endpoint llegeix `seccions` i `X-Persona-Seccions`, i ignora `m` i `X-Model-Sections`.
 
 ### 6.4 Serialitzadors Jackson preexistents
 
@@ -250,7 +262,7 @@ El decorator s'ha d'aplicar només als convertidors Jackson. Cal provar que la d
 
 El filtratge només treu propietats de la representació. No reemplaça comprovacions d'autorització ni redacció obligatòria de dades. En particular, si `m` és absent, es retorna el model complet de l'endpoint; el servei ha d'autoritzar prèviament tot el contingut que pot retornar.
 
-Per a headers, retornar `Vary: <header>` i configurar CORS si el navegador ha d'enviar-lo. Revisar també caches a CDN, proxy i aplicació. Query parameters normalment formen part de la clau de cache, però s'ha de comprovar la configuració concreta.
+Retornar `Vary: <header>` a tots els endpoints filtrats i configurar CORS si el navegador ha d'enviar el header. Revisar també caches a CDN, proxy i aplicació. Query parameters normalment formen part de la clau de cache, però s'ha de comprovar la configuració concreta.
 
 L'estat de selecció no es desa en un camp singleton, `ThreadLocal`, `RequestContextHolder` ni en l'`ObjectMapper`. Es construeix per resposta i s'aplica via `ObjectWriter`, evitant que peticions concurrents es filtrin mútuament.
 
@@ -269,7 +281,7 @@ L'estat de selecció no es desa en un camp singleton, `ThreadLocal`, `RequestCon
 - Endpoint sense anotació (també amb codis invàlids) i endpoint anotat.
 - Anotació a mètode, classe, interfície, mètode d'interfície i superclasse.
 - Mètode que reemplaça tota la configuració de classe.
-- Origen query/header, nom personalitzat, absència, buit, valor repetit i cap fallback.
+- Query parameter, header, preferència del query parameter quan hi són tots dos, header invàlid ignorat si hi ha query parameter, noms personalitzats, absència, buit i valor repetit.
 - Resposta d'error preservada; `Vary` acumulatiu per header.
 
 ### Jackson i estructura
@@ -292,7 +304,7 @@ A més de `MockMvcBuilders.standaloneSetup`, aixecar un context real amb autocon
 - Un bean sense marques conserva totes les propietats. Per això els DTO de domini que necessiten filtratge han de tenir almenys una marca; els wrappers tècnics es deixen sense marques.
 - La cascada aplica els mateixos codis a tots els nivells. Si cal un contracte diferent per endpoint o per nivell, el parser/model de selecció s'ha d'ampliar deliberadament.
 - El filtratge ocorre després de carregar i mapar la resposta; no estalvia IO ni processament.
-- L'anotació no genera documentació OpenAPI per si sola. Cal publicar, per endpoint, l'origen i les seccions realment disponibles.
+- L'anotació no genera documentació OpenAPI per si sola. Cal publicar, per endpoint, els noms del query parameter i del header i les seccions realment disponibles.
 - S'ha de mantenir una política explícita de compatibilitat per a canvis de codis, DTO compartits i versions de Spring/Jackson.
 
 ## 10. Guia de desplegament
@@ -321,7 +333,7 @@ Les seccions 3.3–3.6 descriuen el mecanisme per a Spring Boot 2 / Jackson 2. A
 
 Conseqüències sobre els components:
 
-- **`ModelFilteringAdvice`**: a `beforeBodyWrite` valida la selecció, afegeix `Vary` i desa la `ModelSelection` com a atribut de la petició (Spring no passa la petició a `determineWriteHints`). A `determineWriteHints` construeix el `FilterProvider` immutable de la resposta. L'estat queda lligat a la petició, no a cap singleton, `ThreadLocal` propi ni mapper. Ha de portar `@ControllerAdvice` a la classe, de manera que el paquet de la biblioteca no ha de quedar dins l'escaneig de components del consumidor.
+- **`ModelFilteringAdvice`**: a `beforeBodyWrite` llegeix el query parameter o, si és absent, el header; valida la selecció, afegeix `Vary` i desa la `ModelSelection` com a atribut de la petició (Spring no passa la petició a `determineWriteHints`). A `determineWriteHints` construeix el `FilterProvider` immutable de la resposta. L'estat queda lligat a la petició, no a cap singleton, `ThreadLocal` propi ni mapper. Ha de portar `@ControllerAdvice` a la classe, de manera que el paquet de la biblioteca no ha de quedar dins l'escaneig de components del consumidor.
 - **`ModelFilteringModule`**: registra l'introspector. Els beans sense marques no reben cap filtre (punt 1 de la secció 3.4). La còpia privada del mapper té un `FilterProvider` per defecte que deixa passar totes les propietats, de manera que sense hint la sortida és idèntica a la de Jackson (punt 3). El filtre del hint delega els ids que no són propis al `FilterProvider` existent del mapper, per no trencar `@JsonFilter` de l'aplicació.
 - **Cascada**: el `FilterProvider` és el mateix per a tot el graf de l'`ObjectWriter`, de manera que la selecció arriba igualment a fills, llistes, arrays i mapes.
 - **Mapper privat**: el bean `JsonMapper` de Boot i els convertidors de client no canvien; només el convertidor JSON de servidor fa servir la còpia amb el mòdul.

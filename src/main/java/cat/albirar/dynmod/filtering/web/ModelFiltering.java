@@ -11,16 +11,25 @@ import java.lang.annotation.Target;
 /**
  * Opts a controller or endpoint into model filtering. A method annotation replaces the
  * class annotation completely.
+ * <p>
+ * The selection can be sent as a query parameter or as a header. When both are present the
+ * query parameter is used and the header is ignored.
  */
 @Documented
 @Retention(RUNTIME)
 @Target({ TYPE, METHOD })
 public @interface ModelFiltering {
 
-    ModelFilterSource source() default ModelFilterSource.QUERY_PARAM;
+    String DEFAULT_QUERY_PARAM = "m";
+    String DEFAULT_HEADER = "X-Model-Sections";
 
     /**
-     * Name of the query parameter or header; empty to use the source's default name.
+     * Name of the query parameter carrying the selection.
      */
-    String name() default "";
+    String queryParam() default DEFAULT_QUERY_PARAM;
+
+    /**
+     * Name of the header carrying the selection.
+     */
+    String header() default DEFAULT_HEADER;
 }

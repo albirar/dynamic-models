@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import cat.albirar.dynmod.demo.config.ApplicationProperties;
 
-@SpringBootApplication(scanBasePackages = "cat.albirar.dynmod")
+@SpringBootApplication(scanBasePackages = "cat.albirar.dynmod.demo")
 @EnableConfigurationProperties(ApplicationProperties.class)
 @EnableJpaRepositories(basePackages = "cat.albirar.dynmod.demo.repository")
 public class DemoApplication {

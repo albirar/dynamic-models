@@ -1,24 +1,26 @@
 package cat.albirar.dynmod.demo.models;
 
-import com.fasterxml.jackson.annotation.JsonFilter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
-import cat.albirar.dynmod.demo.models.filters.FilteredView;
-import cat.albirar.dynmod.demo.models.filters.FiltersModel;
+import cat.albirar.dynmod.filtering.model.ModelBasic;
+import cat.albirar.dynmod.filtering.model.ModelPart;
+import cat.albirar.dynmod.filtering.model.ModelSections;
 import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(value = Include.NON_ABSENT)
-@JsonFilter("vehiclePartFilter")
 public class VehiclePartBean {
+    @ModelBasic
     private String partNumber;
+    @ModelBasic
     private String name;
+    @ModelBasic
     private String mountingReference;
-    @FilteredView(filters = {FiltersModel.Economic})
+    @ModelSections(ModelPart.ECONOMIC)
     private float marketPrice;
-    @FilteredView(filters = {FiltersModel.Economic})
+    @ModelSections(ModelPart.ECONOMIC)
     private float margin;
 }

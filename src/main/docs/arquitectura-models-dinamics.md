@@ -6,6 +6,8 @@ Aquest document descriu una arquitectura reutilitzable per permetre que un consu
 
 L'arquitectura assumeix Spring MVC i Jackson, compatible amb Java 11 i Spring Boot 2.5.x. No depèn d'una forma concreta de controller: funciona amb un objecte, `ResponseEntity`, col·leccions, arrays, mapes, embolcalls de paginació i valors paginats de Spring Data.
 
+> **Spring Boot 4 / Spring Framework 7 / Jackson 3:** el contracte observable (seccions 2, 4, 7 i 9) es manté, però el mecanisme intern de les seccions 3.3–3.6 canvia. Vegeu la [secció 11](#11-adaptació-a-spring-boot-4-spring-framework-7-i-jackson-3) i [nova-implementacio.md](./nova-implementacio.md).
+
 El mecanisme és una política de presentació de resposta, no un sistema d'autorització ni una projecció de consulta. No s'ha d'utilitzar per protegir informació sensible ni per reduir consultes a base de dades.
 
 ## 2. Contracte observable
@@ -303,3 +305,25 @@ A més de `MockMvcBuilders.standaloneSetup`, aixecar un context real amb autocon
 6. Comparar respostes completes sense selecció amb la versió anterior: han de ser idèntiques segons les regles Jackson existents.
 7. Activar gradualment els clients amb query o header i monitoritzar errors 400 i mida de resposta.
 8. No habilitar `models.filtratge` globalment fins que s'hagi comprovat l'ordre i la coexistència dels convertidors del servei.
+
+## 11. Adaptació a Spring Boot 4, Spring Framework 7 i Jackson 3
+
+Les seccions 3.3–3.6 descriuen el mecanisme per a Spring Boot 2 / Jackson 2. A Spring Boot 4.x el convertidor JSON de MVC és `JacksonJsonHttpMessageConverter`, basat en Jackson 3 (`tools.jackson`), i diverses peces del disseny original ja no són aplicables:
+
+| Disseny original | Problema a Boot 4 | Substitució |
+| --- | --- | --- |
+| Embolcallar el cos en un contenidor equivalent a `MappingJacksonValue` | `MappingJacksonValue` està deprecated i el convertidor de Jackson 3 el rebutja | `ResponseBodyAdvice.determineWriteHints` retorna un hint `FilterProvider` per resposta |
+| Atribut de selecció en un `ObjectWriter` | `customizeWriter` del convertidor no rep els hints; caldria duplicar `writeInternal` | El `FilterProvider` del hint porta la selecció; Spring l'aplica amb `ObjectWriter.with(filters)` |
+| `BeanSerializerModifier` que decora els `BeanPropertyWriter` | API renombrada (`ValueSerializerModifier`) | `AnnotationIntrospector.findFilterId` assigna un filtre només als beans marcats; un `PropertyFilter` immutable decideix cada propietat |
+| Decorar `MappingJackson2HttpMessageConverter` | Deprecated (Jackson 2) | `ServerHttpMessageConvertersCustomizer` que registra un `JacksonJsonHttpMessageConverter` amb `jsonMapper.rebuild()` + mòdul |
+| `META-INF/spring.factories` | Format retirat per a auto-configuracions | `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `javax.servlet` | — | `jakarta.servlet` |
+
+Conseqüències sobre els components:
+
+- **`ModelFilteringAdvice`**: a `beforeBodyWrite` valida la selecció, afegeix `Vary` i desa la `ModelSelection` com a atribut de la petició (Spring no passa la petició a `determineWriteHints`). A `determineWriteHints` construeix el `FilterProvider` immutable de la resposta. L'estat queda lligat a la petició, no a cap singleton, `ThreadLocal` propi ni mapper. Ha de portar `@ControllerAdvice` a la classe, de manera que el paquet de la biblioteca no ha de quedar dins l'escaneig de components del consumidor.
+- **`ModelFilteringModule`**: registra l'introspector. Els beans sense marques no reben cap filtre (punt 1 de la secció 3.4). La còpia privada del mapper té un `FilterProvider` per defecte que deixa passar totes les propietats, de manera que sense hint la sortida és idèntica a la de Jackson (punt 3). El filtre del hint delega els ids que no són propis al `FilterProvider` existent del mapper, per no trencar `@JsonFilter` de l'aplicació.
+- **Cascada**: el `FilterProvider` és el mateix per a tot el graf de l'`ObjectWriter`, de manera que la selecció arriba igualment a fills, llistes, arrays i mapes.
+- **Mapper privat**: el bean `JsonMapper` de Boot i els convertidors de client no canvien; només el convertidor JSON de servidor fa servir la còpia amb el mòdul.
+- **Configuració incorrecta**: un bean marcat amb `@JsonFilter` propi, o una propietat amb `@ModelBasic` i `@ModelSections`, falla en construir el serialitzador amb un missatge que identifica la classe i el membre.
+- **Altres hints**: si un altre `ResponseBodyAdvice` aporta també un hint `FilterProvider`, Spring en conserva només un (l'últim). Cal que no hi hagi dos advices competint pel mateix hint en un endpoint filtrat.

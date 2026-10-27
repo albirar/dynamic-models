@@ -2,8 +2,6 @@ spring:
   application:
     name: '@project.artifactId@'
     version: '@project.version@'
-    models:
-      filtered: true
   datasource:
     url: jdbc:h2:mem:vehicledb
     driver-class-name: org.h2.Driver
@@ -25,3 +23,5 @@ spring:
       mode: always
       schema-locations: classpath:schema.sql
       data-locations: classpath:data.sql
+models:
+  filtratge: true

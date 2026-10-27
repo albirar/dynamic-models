@@ -4,13 +4,13 @@ import java.time.Instant;
 import java.util.Currency;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.annotation.JsonFilter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
-import cat.albirar.dynmod.demo.models.filters.FilteredView;
-import cat.albirar.dynmod.demo.models.filters.FiltersModel;
+import cat.albirar.dynmod.filtering.model.ModelBasic;
+import cat.albirar.dynmod.filtering.model.ModelPart;
+import cat.albirar.dynmod.filtering.model.ModelSections;
 import lombok.Data;
 
 /**
@@ -20,20 +20,23 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(value = Include.NON_ABSENT)
-@JsonFilter("marketDataFilter")
 public class MarketDataBean {
+    @ModelBasic
     private String country;
+    @ModelBasic
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSX", timezone = "UTC")
     private Instant startCommercializing;
+    @ModelBasic
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSX", timezone = "UTC")
     private Instant endCommercializing;
+    @ModelBasic
     private String commercialName;
-    @FilteredView(filters = {FiltersModel.Economic})
+    @ModelSections(ModelPart.ECONOMIC)
     private Currency currency;
-    @FilteredView(filters = {FiltersModel.Economic})
+    @ModelSections(ModelPart.ECONOMIC)
     private float localMarketPrice;
-    @FilteredView(filters = {FiltersModel.Economic})
+    @ModelSections(ModelPart.ECONOMIC)
     private float marketPrice;
-    @FilteredView(filters = {FiltersModel.Economic})
+    @ModelSections(ModelPart.ECONOMIC)
     private float margin;
 }

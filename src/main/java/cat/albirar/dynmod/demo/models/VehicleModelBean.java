@@ -12,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import cat.albirar.dynmod.filtering.model.ModelBasic;
 import cat.albirar.dynmod.filtering.model.ModelPart;
 import cat.albirar.dynmod.filtering.model.ModelSections;
+import cat.albirar.dynmod.filtering.model.ModelSource;
 import lombok.Data;
 
 @Data
@@ -44,6 +45,7 @@ public class VehicleModelBean {
      * Construction year
      */
     @ModelBasic
+    @ModelSource("constructionYear")
     private int construction;
     /**
      * Commercialization date.

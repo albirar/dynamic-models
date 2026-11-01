@@ -2,6 +2,7 @@ package cat.albirar.dynmod.filtering.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,6 +57,39 @@ class ModelSelectionTest {
         assertTrue(selection.includesAny(new ModelPart[] { ModelPart.BRAND, ModelPart.MARKET }));
         assertFalse(selection.includesAny(new ModelPart[] { ModelPart.BRAND, ModelPart.PARTS }));
         assertFalse(selection.includesAny(new ModelPart[0]));
+    }
+
+    @Test
+    void fullSelectionIncludesEverySection() {
+        ModelSelection full = ModelSelection.full();
+        assertTrue(full.isFull());
+        assertEquals(EnumSet.allOf(ModelPart.class), full.parts());
+        assertTrue(full.includes(ModelPart.ECONOMIC));
+        assertTrue(full.includesAll(ModelPart.MARKET, ModelPart.ECONOMIC));
+        assertFalse(ModelSelection.parse("BMPE").isFull());
+        assertFalse(ModelSelection.parse("").isFull());
+    }
+
+    @Test
+    void fullSelectionIsNotEqualToEveryCode() {
+        // Unmarked properties are written only by the full selection
+        assertNotEquals(ModelSelection.full(), ModelSelection.parse("BMPE"));
+        assertEquals(ModelSelection.full(), ModelSelection.full());
+    }
+
+    @Test
+    void includesChecksSingleSection() {
+        ModelSelection selection = ModelSelection.parse("BP");
+        assertTrue(selection.includes(ModelPart.BRAND));
+        assertFalse(selection.includes(ModelPart.MARKET));
+    }
+
+    @Test
+    void includesAllAppliesCascade() {
+        ModelSelection selection = ModelSelection.parse("PE");
+        assertTrue(selection.includesAll(ModelPart.PARTS, ModelPart.ECONOMIC));
+        assertFalse(selection.includesAll(ModelPart.MARKET, ModelPart.ECONOMIC));
+        assertTrue(selection.includesAll());
     }
 
     @Test

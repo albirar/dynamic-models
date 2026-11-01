@@ -1,15 +1,11 @@
 package cat.albirar.dynmod.filtering.web;
 
-import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.core.MethodParameter;
-import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -22,36 +18,36 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
-import org.springframework.web.util.UriComponentsBuilder;
-import org.springframework.web.util.UriUtils;
 
 import cat.albirar.dynmod.filtering.jackson.ModelFilterProvider;
-import cat.albirar.dynmod.filtering.model.InvalidModelSelectionException;
 import cat.albirar.dynmod.filtering.model.ModelSelection;
 import tools.jackson.databind.ser.FilterProvider;
 
 /**
  * Applies the model selection of endpoints annotated with {@link ModelFiltering}.
  * <p>
- * {@link #beforeBodyWrite} reads the selection from the query parameter or, when the parameter
- * is absent, from the header; it validates it, adds the header to {@code Vary} and stores the
- * selection as a request attribute. {@link #determineWriteHints}, which Spring calls
+ * {@link #beforeBodyWrite} adds the header to {@code Vary} and takes the selection resolved by
+ * {@link ModelSelectionInterceptor} before the handler ran (or resolves it now, if the
+ * interceptor is not registered). For successful responses with a selection it stores the
+ * selection to apply as a request attribute. {@link #determineWriteHints}, which Spring calls
  * afterwards without the request, turns it into a per-response {@link FilterProvider} hint.
  * Without selection the body is written as usual.
  */
 @ControllerAdvice
 public class ModelFilteringAdvice implements ResponseBodyAdvice<Object> {
 
-    static final String SELECTION_ATTRIBUTE = ModelFilteringAdvice.class.getName() + ".selection";
+    static final String APPLIED_SELECTION_ATTRIBUTE = ModelFilteringAdvice.class.getName() + ".selection";
     private static final String FILTER_PROVIDER_HINT = FilterProvider.class.getName();
 
+    private final ModelSelectionResolver resolver;
     private final FilterProvider delegate;
-    private final Map<Endpoint, Optional<ModelFiltering>> annotations = new ConcurrentHashMap<>();
 
     /**
+     * @param resolver resolver shared with the interceptor and the argument resolver
      * @param delegate provider for filter ids other than the model filter, or {@code null}
      */
-    public ModelFilteringAdvice(FilterProvider delegate) {
+    public ModelFilteringAdvice(ModelSelectionResolver resolver, FilterProvider delegate) {
+        this.resolver = resolver;
         this.delegate = delegate;
     }
 
@@ -74,23 +70,9 @@ public class ModelFilteringAdvice implements ResponseBodyAdvice<Object> {
             return body;
         }
 
-        String name = filtering.queryParam();
-        List<String> values = queryParameterValues(request, name);
-        if (values == null) {
-            name = filtering.header();
-            values = request.getHeaders().get(name);
-        }
-        if (values == null || values.isEmpty()) {
-            return body;
-        }
-        if (values.size() > 1) {
-            throw new ModelFilteringException("Model selection '" + name + "' must have a single value");
-        }
-        try {
-            servletRequest.getServletRequest().setAttribute(SELECTION_ATTRIBUTE, ModelSelection.parse(values.get(0)));
-        }
-        catch (InvalidModelSelectionException e) {
-            throw new ModelFilteringException(e.getMessage(), e);
+        ModelSelection selection = resolver.resolve(servletRequest.getServletRequest(), filtering);
+        if (!selection.isFull()) {
+            servletRequest.getServletRequest().setAttribute(APPLIED_SELECTION_ATTRIBUTE, selection);
         }
         return body;
     }
@@ -101,35 +83,14 @@ public class ModelFilteringAdvice implements ResponseBodyAdvice<Object> {
 
         RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
         if (attributes == null
-                || !(attributes.getAttribute(SELECTION_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST) instanceof ModelSelection selection)) {
+                || !(attributes.getAttribute(APPLIED_SELECTION_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST) instanceof ModelSelection selection)) {
             return null;
         }
         return Map.of(FILTER_PROVIDER_HINT, new ModelFilterProvider(selection, delegate));
     }
 
     private Optional<ModelFiltering> findAnnotation(MethodParameter returnType) {
-        Method method = returnType.getMethod();
-        Class<?> controller = returnType.getContainingClass();
-        return annotations.computeIfAbsent(new Endpoint(controller, method), endpoint -> {
-            ModelFiltering annotation = method != null
-                    ? AnnotatedElementUtils.findMergedAnnotation(method, ModelFiltering.class)
-                    : null;
-            if (annotation == null) {
-                annotation = AnnotatedElementUtils.findMergedAnnotation(controller, ModelFiltering.class);
-            }
-            return Optional.ofNullable(annotation);
-        });
-    }
-
-    private static List<String> queryParameterValues(ServerHttpRequest request, String name) {
-        List<String> values = UriComponentsBuilder.fromUri(request.getURI()).build().getQueryParams().get(name);
-        if (values == null) {
-            return null;
-        }
-        // A parameter without '=' ("?m") is reported as null: treat it as an empty selection
-        return values.stream()
-                .map(value -> value == null ? "" : UriUtils.decode(value, StandardCharsets.UTF_8))
-                .toList();
+        return resolver.findAnnotation(returnType.getContainingClass(), returnType.getMethod());
     }
 
     private static void addVary(HttpHeaders headers, String name) {
@@ -149,8 +110,5 @@ public class ModelFilteringAdvice implements ResponseBodyAdvice<Object> {
     private static boolean isError(ServerHttpResponse response) {
         return response instanceof ServletServerHttpResponse servletResponse
                 && servletResponse.getServletResponse().getStatus() >= 400;
-    }
-
-    private record Endpoint(Class<?> controller, Method method) {
     }
 }

@@ -97,11 +97,13 @@ Rules:
 
 With the 25 vehicle records of the demo (`GET /vehicles?size=100`):
 
-| Selection | Response size |
-| --- | --- |
-| Full model | 7,817 bytes |
-| `m=B` | 6,156 bytes (−21 %) |
-| `m=` | 3,234 bytes (−59 %) |
+| Selection | Response size | SQL queries (before → now) |
+| --- | --- | --- |
+| Full model | 7,817 bytes | 61 → 3 |
+| `m=B` | 6,156 bytes (−21 %) | 61 → 1 |
+| `m=` | 3,234 bytes (−59 %) | 61 → 1 |
+
+Queries drop because `/vehicles` also uses the selection as a **projection**: it only reads the tables and columns of the requested sections (see [Projections](src/main/docs/projeccions.en.md)).
 
 In real models, with large collections (histories, lines, documents), the difference is usually much bigger.
 
@@ -129,7 +131,7 @@ In real models, with large collections (histories, lines, documents), the differ
 ### What it is not
 
 - **It is not an authorization mechanism.** Without a selection the full model is returned; everything the model can contain must already be authorized for the user. To hide sensitive data, filter it beforehand, in the service layer.
-- **It is not a query projection.** Filtering happens at serialization time: the database and the DTO mapping do the same work with or without a selection.
+- **It is not an automatic projection.** Filtering happens at serialization time. For the database to do less work as well, the controller has to receive the selection (a `ModelSelection` parameter) and pass it to the data layer, as `/vehicles` does in the demo. See [Projections](src/main/docs/projeccions.en.md).
 
 ---
 
@@ -151,7 +153,7 @@ In real models, with large collections (histories, lines, documents), the differ
 
 | | |
 | --- | --- |
-| **Does not save work on the server** | Data is loaded and mapped anyway. If the main cost is the database or a remote service, combine it with projections or lazy loading per section. |
+| **Server-side savings are not automatic** | The filter only acts at serialization time. To reduce the load on the database or a remote service, the data layer has to use the selection to load only the requested sections ([Projections](src/main/docs/projeccions.en.md)). |
 | **More complex contract** | Every field of the model may or may not be present depending on the request. Typed clients must treat every non-basic field as optional, and the documentation must explain the sections. |
 | **OpenAPI cannot express it** | Client generation tools do not know which fields depend on each section; it must be documented by hand or with custom extensions. |
 | **Cache fragmentation** | Each combination of sections is a different entry. With 4 sections there are up to 16 variants per URL. |
@@ -197,6 +199,7 @@ Details in:
 
 - [Model filtering architecture](src/main/docs/arquitectura-models-dinamics.en.md): contract and design.
 - [New implementation](src/main/docs/nova-implementacio.en.md): adaptation to Spring Boot 4 / Jackson 3 and migration from the previous version.
+- [Projections](src/main/docs/projeccions.en.md): turning the selection into a database projection.
 
 ### Structure
 

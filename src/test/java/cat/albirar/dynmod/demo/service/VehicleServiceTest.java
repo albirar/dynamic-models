@@ -2,7 +2,10 @@ package cat.albirar.dynmod.demo.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -23,12 +26,17 @@ import cat.albirar.dynmod.demo.entity.BrandEntity;
 import cat.albirar.dynmod.demo.entity.VehicleEntity;
 import cat.albirar.dynmod.demo.entity.VehicleTypeEntity;
 import cat.albirar.dynmod.demo.repository.VehicleRepository;
+import cat.albirar.dynmod.filtering.jpa.ProjectionExecutor;
+import cat.albirar.dynmod.filtering.model.ModelSelection;
 
 @ExtendWith(MockitoExtension.class)
 class VehicleServiceTest {
 
     @Mock
     private VehicleRepository vehicleRepository;
+
+    @Mock
+    private ProjectionExecutor projectionExecutor;
 
     @InjectMocks
     private VehicleService vehicleService;
@@ -155,6 +163,39 @@ class VehicleServiceTest {
         // Then
         assertNotNull(result);
         assertEquals(2, result.getTotalElements());
+    }
+
+    @Test
+    void searchVehicles_WithoutCollectionSections_ShouldNotLoadCollections() {
+        Page<VehicleEntity> page = new PageImpl<>(java.util.List.of(toyotaCorollaEntity, fordMustangEntity));
+        when(vehicleRepository.findAll(ArgumentMatchers.<Specification<VehicleEntity>>any(), eq(pageable))).thenReturn(page);
+
+        vehicleService.searchVehicles(new VehicleSearchCriteria(), ModelSelection.parse("BE"), pageable);
+
+        verify(vehicleRepository, never()).fetchMarketData(any());
+        verify(vehicleRepository, never()).fetchParts(any());
+    }
+
+    @Test
+    void searchVehicles_WithCollectionSections_ShouldLoadThemForThePage() {
+        Page<VehicleEntity> page = new PageImpl<>(java.util.List.of(toyotaCorollaEntity, fordMustangEntity));
+        when(vehicleRepository.findAll(ArgumentMatchers.<Specification<VehicleEntity>>any(), eq(pageable))).thenReturn(page);
+
+        vehicleService.searchVehicles(new VehicleSearchCriteria(), ModelSelection.parse("P"), pageable);
+
+        verify(vehicleRepository, never()).fetchMarketData(any());
+        verify(vehicleRepository).fetchParts(java.util.List.of(1L, 2L));
+    }
+
+    @Test
+    void searchVehicles_WithFullSelectionAndEmptyPage_ShouldNotLoadCollections() {
+        when(vehicleRepository.findAll(ArgumentMatchers.<Specification<VehicleEntity>>any(), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        vehicleService.searchVehicles(new VehicleSearchCriteria(), ModelSelection.full(), pageable);
+
+        verify(vehicleRepository, never()).fetchMarketData(any());
+        verify(vehicleRepository, never()).fetchParts(any());
     }
 
     @Test

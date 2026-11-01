@@ -1,5 +1,7 @@
 package cat.albirar.dynmod.filtering.web;
 
+import java.util.List;
+
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
@@ -12,7 +14,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.DispatcherServlet;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import cat.albirar.dynmod.filtering.jackson.ModelFilterProvider;
 import cat.albirar.dynmod.filtering.jackson.ModelFilteringModule;
@@ -23,7 +28,8 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>
  * The server JSON converter is replaced by one using a private copy of the application
  * {@link JsonMapper} with {@link ModelFilteringModule}. The shared mapper and the client
- * converters are not modified.
+ * converters are not modified. An interceptor and an argument resolver make the selection
+ * available before the handler runs.
  */
 @AutoConfiguration(after = JacksonAutoConfiguration.class)
 @ConditionalOnWebApplication(type = Type.SERVLET)
@@ -45,7 +51,32 @@ public class ModelFilteringAutoConfiguration {
     }
 
     @Bean
-    ModelFilteringAdvice modelFilteringAdvice(JsonMapper jsonMapper) {
-        return new ModelFilteringAdvice(jsonMapper.serializationConfig().getFilterProvider());
+    ModelSelectionResolver modelSelectionResolver() {
+        return new ModelSelectionResolver();
+    }
+
+    @Bean
+    ModelFilteringAdvice modelFilteringAdvice(ModelSelectionResolver resolver, JsonMapper jsonMapper) {
+        return new ModelFilteringAdvice(resolver, jsonMapper.serializationConfig().getFilterProvider());
+    }
+
+    /**
+     * Resolves the selection before the handler runs, so it is validated before any data is
+     * loaded and can be received as a {@link cat.albirar.dynmod.filtering.model.ModelSelection}
+     * parameter.
+     */
+    @Bean
+    WebMvcConfigurer modelSelectionWebMvcConfigurer(ModelSelectionResolver resolver) {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addInterceptors(InterceptorRegistry registry) {
+                registry.addInterceptor(new ModelSelectionInterceptor(resolver));
+            }
+
+            @Override
+            public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+                resolvers.add(new ModelSelectionArgumentResolver(resolver));
+            }
+        };
     }
 }

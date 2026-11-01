@@ -14,6 +14,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
+    # Accessing an association that was not loaded fails instead of querying silently
+    open-in-view: false
     show-sql: true
     properties:
       hibernate:

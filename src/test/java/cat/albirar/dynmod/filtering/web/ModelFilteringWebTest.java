@@ -1,14 +1,17 @@
 package cat.albirar.dynmod.filtering.web;
 
 import static org.hamcrest.Matchers.contains;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +36,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import cat.albirar.dynmod.filtering.model.ModelBasic;
 import cat.albirar.dynmod.filtering.model.ModelPart;
 import cat.albirar.dynmod.filtering.model.ModelSections;
+import cat.albirar.dynmod.filtering.model.ModelSelection;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -65,6 +69,8 @@ class ModelFilteringWebTest {
 
     record Child(@ModelBasic String name, @ModelSections(ModelPart.ECONOMIC) Integer price) {
     }
+
+    static final AtomicInteger invocations = new AtomicInteger();
 
     static Item item() {
         return new Item("1", null, "brand", "market", List.of(new Child("child", 10)), "unmarked");
@@ -120,6 +126,18 @@ class ModelFilteringWebTest {
         ResponseEntity<Item> error() {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ModelFilteringWebTest.item());
         }
+
+        @GetMapping("/selection")
+        String selection(ModelSelection selection) {
+            invocations.incrementAndGet();
+            return selection.toString();
+        }
+
+        @GetMapping("/custom-selection")
+        @ModelFiltering(queryParam = "sections", header = "X-Parts")
+        String customSelection(ModelSelection selection) {
+            return selection.toString();
+        }
     }
 
     @RestController
@@ -128,6 +146,11 @@ class ModelFilteringWebTest {
         @GetMapping("/plain/item")
         Item item() {
             return ModelFilteringWebTest.item();
+        }
+
+        @GetMapping("/plain/selection")
+        String selection(ModelSelection selection) {
+            return selection.toString();
         }
     }
 
@@ -291,9 +314,44 @@ class ModelFilteringWebTest {
 
     @Test
     void errorResponsesArePreserved() throws Exception {
-        mvc.perform(get("/test/error?m=X"))
+        mvc.perform(get("/test/error?m="))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.unmarked").value("unmarked"));
+    }
+
+    @Test
+    void selectionIsAvailableToTheHandler() throws Exception {
+        mvc.perform(get("/test/selection?m=BP"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("ModelSelection[BRAND, PARTS]"));
+        mvc.perform(get("/test/selection").header(HEADER, "M"))
+                .andExpect(content().string("ModelSelection[MARKET]"));
+        mvc.perform(get("/test/selection?m="))
+                .andExpect(content().string("ModelSelection[]"));
+        mvc.perform(get("/test/selection"))
+                .andExpect(content().string("ModelSelection[FULL]"));
+        mvc.perform(get("/test/custom-selection?m=B").header("X-Parts", "P"))
+                .andExpect(content().string("ModelSelection[PARTS]"));
+    }
+
+    @Test
+    void invalidSelectionIsRejectedBeforeTheHandlerRuns() throws Exception {
+        int before = invocations.get();
+        mvc.perform(get("/test/selection?m=BX"))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().stringValues(HttpHeaders.VARY, contains(HEADER)));
+        mvc.perform(get("/test/selection").header(HEADER, "B", "P"))
+                .andExpect(status().isBadRequest());
+        // An error response from the handler is not reached with an invalid selection
+        mvc.perform(get("/test/error?m=X")).andExpect(status().isBadRequest());
+        assertEquals(before, invocations.get());
+    }
+
+    @Test
+    void endpointWithoutAnnotationReceivesFullSelection() throws Exception {
+        mvc.perform(get("/plain/selection?m=X").header(HEADER, "X"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("ModelSelection[FULL]"));
     }
 
     @Test

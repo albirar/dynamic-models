@@ -97,11 +97,13 @@ Regles:
 
 Amb les 25 dades de vehicles de la demo (`GET /vehicles?size=100`):
 
-| Selecció | Mida de la resposta |
-| --- | --- |
-| Model complet | 7.817 bytes |
-| `m=B` | 6.156 bytes (−21 %) |
-| `m=` | 3.234 bytes (−59 %) |
+| Selecció | Mida de la resposta | Consultes SQL (abans → ara) |
+| --- | --- | --- |
+| Model complet | 7.817 bytes | 61 → 3 |
+| `m=B` | 6.156 bytes (−21 %) | 61 → 1 |
+| `m=` | 3.234 bytes (−59 %) | 61 → 1 |
+
+Les consultes es redueixen perquè `/vehicles` també fa servir la selecció com a **projecció**: només llegeix les taules i les columnes de les seccions demanades (vegeu [Projeccions](src/main/docs/projeccions.md)).
 
 En models reals, amb col·leccions grans (historials, línies, documents), la diferència sol ser molt més gran.
 
@@ -129,7 +131,7 @@ En models reals, amb col·leccions grans (historials, línies, documents), la di
 ### Què no és
 
 - **No és un mecanisme d'autorització.** Sense selecció es retorna el model complet; tot el que el model pot contenir ha d'estar ja autoritzat per a l'usuari. Per amagar dades sensibles cal filtrar-les abans, a la capa de servei.
-- **No és una projecció de consulta.** El filtratge es fa en serialitzar: la base de dades i el mapatge a DTO fan la mateixa feina amb o sense selecció.
+- **No és una projecció automàtica.** El filtratge es fa en serialitzar. Perquè la base de dades també faci menys feina, el controlador ha de rebre la selecció (un paràmetre `ModelSelection`) i passar-la a la capa de dades, com fa `/vehicles` a la demo. Vegeu [Projeccions](src/main/docs/projeccions.md).
 
 ---
 
@@ -151,7 +153,7 @@ En models reals, amb col·leccions grans (historials, línies, documents), la di
 
 | | |
 | --- | --- |
-| **No estalvia treball al servidor** | Les dades es carreguen i es mapegen igualment. Si el cost principal és la base de dades o un servei remot, cal combinar-ho amb projeccions o càrrega lazy per secció. |
+| **L'estalvi al servidor no és automàtic** | El filtre només actua en serialitzar. Per reduir la càrrega de la base de dades o d'un servei remot, la capa de dades ha de fer servir la selecció per carregar només les seccions demanades ([Projeccions](src/main/docs/projeccions.md)). |
 | **Contracte més complex** | Cada camp del model pot ser present o no segons la petició. Els clients tipats han de tractar com a opcionals tots els camps que no són bàsics, i la documentació ha d'explicar les seccions. |
 | **OpenAPI no ho expressa** | Les eines de generació de clients no saben quins camps depenen de cada secció; cal documentar-ho a mà o amb extensions pròpies. |
 | **Fragmentació de cache** | Cada combinació de seccions és una entrada diferent. Amb 4 seccions hi ha fins a 16 variants per URL. |
@@ -197,6 +199,7 @@ Detalls a:
 
 - [Arquitectura de filtratge de models](src/main/docs/arquitectura-models-dinamics.md): contracte i disseny.
 - [Nova implementació](src/main/docs/nova-implementacio.md): adaptació a Spring Boot 4 / Jackson 3 i migració des de la versió anterior.
+- [Projeccions](src/main/docs/projeccions.md): convertir la selecció en una projecció a la base de dades.
 
 ### Estructura
 

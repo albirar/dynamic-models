@@ -16,7 +16,8 @@ public final class ModelFilterProvider extends FilterProvider {
     private final FilterProvider delegate;
 
     /**
-     * @param selection the sections to include, or {@code null} to include every property
+     * @param selection the sections to include; {@code null} or {@link ModelSelection#full()}
+     *            include every property
      * @param delegate provider for other filter ids, or {@code null}
      */
     public ModelFilterProvider(ModelSelection selection, FilterProvider delegate) {

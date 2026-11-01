@@ -27,7 +27,8 @@ class ModelFilteringAutoConfigurationTest {
     @Test
     void enabledWhenPropertyIsTrue() {
         runner.withPropertyValues("models.filtratge=true")
-                .run(context -> assertThat(context).hasSingleBean(ModelFilteringAdvice.class));
+                .run(context -> assertThat(context).hasSingleBean(ModelFilteringAdvice.class)
+                        .hasSingleBean(ModelSelectionResolver.class));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package cat.albirar.dynmod.demo.converter;
 
+import java.util.Currency;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -15,6 +16,8 @@ import cat.albirar.dynmod.demo.models.MarketDataBean;
 import cat.albirar.dynmod.demo.models.VehicleModelBean;
 import cat.albirar.dynmod.demo.models.VehiclePartBean;
 import cat.albirar.dynmod.demo.models.VehicleType;
+import cat.albirar.dynmod.filtering.model.ModelPart;
+import cat.albirar.dynmod.filtering.model.ModelSelection;
 
 @Component
 public class VehicleEntityToVehicleModelBeanConverter implements Converter<VehicleEntity, VehicleModelBean> {
@@ -27,13 +30,21 @@ public class VehicleEntityToVehicleModelBeanConverter implements Converter<Vehic
 
     @Override
     public VehicleModelBean convert(VehicleEntity source) {
+        return convert(source, ModelSelection.full());
+    }
+
+    /**
+     * Converts only the associations of the selected sections, so associations that were not
+     * loaded are never accessed.
+     */
+    public VehicleModelBean convert(VehicleEntity source, ModelSelection selection) {
         if (source == null) {
             return new VehicleModelBean();
         }
         VehicleModelBean target = new VehicleModelBean();
         
         // Brand
-        if (source.getBrand() != null) {
+        if (selection.includes(ModelPart.BRAND) && source.getBrand() != null) {
             BrandBean brandBean = brandConverter.convert(source.getBrand());
             target.setBrand(brandBean);
         }
@@ -59,7 +70,7 @@ public class VehicleEntityToVehicleModelBeanConverter implements Converter<Vehic
         target.setRetirement(Optional.ofNullable(source.getRetirement()));
         
         // Market Data
-        if (source.getMarketData() != null && !source.getMarketData().isEmpty()) {
+        if (selection.includes(ModelPart.MARKET) && source.getMarketData() != null && !source.getMarketData().isEmpty()) {
             Map<String, MarketDataBean> marketDataMap = source.getMarketData().stream()
                 .collect(Collectors.toMap(
                     VehicleMarketDataEntity::getCountry,
@@ -69,7 +80,7 @@ public class VehicleEntityToVehicleModelBeanConverter implements Converter<Vehic
         }
         
         // Parts
-        if (source.getParts() != null && !source.getParts().isEmpty()) {
+        if (selection.includes(ModelPart.PARTS) && source.getParts() != null && !source.getParts().isEmpty()) {
             Map<String, VehiclePartBean> partsMap = source.getParts().stream()
                 .collect(Collectors.toMap(
                     VehiclePartEntity::getPartNumber,
@@ -87,7 +98,7 @@ public class VehicleEntityToVehicleModelBeanConverter implements Converter<Vehic
         target.setStartCommercializing(source.getStartCommercializing());
         target.setEndCommercializing(source.getEndCommercializing());
         target.setCommercialName(source.getCommercialName());
-        target.setCurrency(java.util.Currency.getInstance(source.getCurrency()));
+        target.setCurrency(source.getCurrency() != null ? Currency.getInstance(source.getCurrency()) : null);
         target.setLocalMarketPrice(source.getLocalMarketPrice());
         target.setMarketPrice(source.getMarketPrice());
         target.setMargin(source.getMargin());

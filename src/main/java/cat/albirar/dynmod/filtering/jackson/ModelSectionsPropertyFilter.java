@@ -16,8 +16,11 @@ class ModelSectionsPropertyFilter extends SimpleBeanPropertyFilter {
 
     private final ModelSelection selection;
 
+    /**
+     * @param selection the sections to include, or {@code null} for the full selection
+     */
     ModelSectionsPropertyFilter(ModelSelection selection) {
-        this.selection = selection;
+        this.selection = selection != null ? selection : ModelSelection.full();
     }
 
     @Override
@@ -27,7 +30,7 @@ class ModelSectionsPropertyFilter extends SimpleBeanPropertyFilter {
 
     @Override
     protected boolean include(PropertyWriter writer) {
-        if (selection == null || writer.getAnnotation(ModelBasic.class) != null) {
+        if (selection.isFull() || writer.getAnnotation(ModelBasic.class) != null) {
             return true;
         }
         ModelSections sections = writer.getAnnotation(ModelSections.class);

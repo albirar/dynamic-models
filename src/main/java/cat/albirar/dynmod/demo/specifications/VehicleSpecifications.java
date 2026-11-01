@@ -8,6 +8,19 @@ import jakarta.persistence.criteria.Join;
 
 public class VehicleSpecifications {
 
+    /**
+     * Fetches the brand together with the vehicles. A many-to-one fetch keeps the pagination
+     * in the database; the count query of the page cannot fetch, so it is skipped there.
+     */
+    public static Specification<VehicleEntity> fetchBrand() {
+        return (root, query, cb) -> {
+            if (!Long.class.equals(query.getResultType())) {
+                root.fetch("brand");
+            }
+            return null;
+        };
+    }
+
     public static Specification<VehicleEntity> byBrandManufacturerWMI(String wmi) {
         return (root, query, cb) -> {
             if (wmi == null) {

@@ -6,15 +6,30 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Immutable set of selected {@link ModelPart sections}, parsed once per response from the
+ * Immutable set of selected {@link ModelPart sections}, parsed once per request from the
  * concatenated codes sent by the consumer (for example {@code "BP"}).
+ * <p>
+ * The {@link #full() full} selection represents a request without selection: every section
+ * and every property, including the unmarked ones, is part of the response. It is not
+ * equivalent to a selection with every code, which still omits unmarked properties.
  */
 public final class ModelSelection {
 
-    private final Set<ModelPart> parts;
+    private static final ModelSelection FULL = new ModelSelection(EnumSet.allOf(ModelPart.class), true);
 
-    private ModelSelection(Set<ModelPart> parts) {
+    private final Set<ModelPart> parts;
+    private final boolean full;
+
+    private ModelSelection(Set<ModelPart> parts, boolean full) {
         this.parts = Collections.unmodifiableSet(parts);
+        this.full = full;
+    }
+
+    /**
+     * @return the selection of a request without selection: the complete model
+     */
+    public static ModelSelection full() {
+        return FULL;
     }
 
     /**
@@ -33,7 +48,21 @@ public final class ModelSelection {
             parts.add(ModelPart.fromCode(code).orElseThrow(() -> new InvalidModelSelectionException(
                     "Unknown model section code '" + code + "' in '" + value + "'")));
         }
-        return new ModelSelection(parts);
+        return new ModelSelection(parts, false);
+    }
+
+    /**
+     * @return {@code true} if this is the {@link #full() full} selection
+     */
+    public boolean isFull() {
+        return full;
+    }
+
+    /**
+     * @return {@code true} if the section is selected; always {@code true} for the full selection
+     */
+    public boolean includes(ModelPart part) {
+        return parts.contains(part);
     }
 
     /**
@@ -48,22 +77,38 @@ public final class ModelSelection {
         return false;
     }
 
+    /**
+     * Checks a nested section together with its ancestors, applying the same cascade as the
+     * serialization: {@code includesAll(MARKET, ECONOMIC)} is {@code true} only when market
+     * data and economic data are both selected.
+     *
+     * @return {@code true} if every part is selected
+     */
+    public boolean includesAll(ModelPart... path) {
+        for (ModelPart part : path) {
+            if (!parts.contains(part)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public Set<ModelPart> parts() {
         return parts;
     }
 
     @Override
     public boolean equals(Object other) {
-        return other instanceof ModelSelection selection && parts.equals(selection.parts);
+        return other instanceof ModelSelection selection && full == selection.full && parts.equals(selection.parts);
     }
 
     @Override
     public int hashCode() {
-        return parts.hashCode();
+        return Boolean.hashCode(full) * 31 + parts.hashCode();
     }
 
     @Override
     public String toString() {
-        return "ModelSelection" + parts;
+        return full ? "ModelSelection[FULL]" : "ModelSelection" + parts;
     }
 }
